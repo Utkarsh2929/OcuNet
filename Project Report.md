@@ -6,7 +6,7 @@
 **Project Report**
 
 **Author:** Utkarsh Gautam  
-**Date:** January 2026  
+**Date:** February 2026  
 **Platform:** Python 3.11, PyTorch 2.0+  
 **Hardware:** NVIDIA GeForce RTX 4050 Laptop GPU (6GB)
 
@@ -51,6 +51,8 @@ The system leverages transfer learning with EfficientNet architectures pretraine
 | **ROC-AUC (Macro)** | 93.68% |
 | **mAP (Mean Average Precision)** | 53.83% |
 | **F1 Score (Micro)** | 52.96% |
+| **F1 Score (Macro, Optimized)** | 54.93% |
+| **F1 Score (Micro, Optimized)** | 73.53% |
 | **Classes Detected** | 28 diseases |
 | **Training Time** | ~2 hours (150 epochs) |
 
@@ -118,7 +120,7 @@ The system classifies fundus images into:
 **Dataset:** Eye Diseases Classification  
 **Source:** Kaggle (https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification)
 
-### 3.2 Dataset Statistics
+#### Dataset Statistics
 
 | Class | Number of Images | Percentage |
 |-------|------------------|------------|
@@ -128,7 +130,7 @@ The system classifies fundus images into:
 | Normal | 1,074 | 25.47% |
 | **Total** | **4,217** | **100%** |
 
-### 3.3 Data Splitting
+#### Data Splitting
 
 Stratified sampling was used to maintain class distribution across splits:
 
@@ -138,7 +140,7 @@ Stratified sampling was used to maintain class distribution across splits:
 | Validation | 633 | 15% | Hyperparameter tuning, early stopping |
 | Test | 633 | 15% | Final evaluation |
 
-### 3.4 Image Properties
+#### Image Properties
 
 | Property | Value |
 |----------|-------|
@@ -147,7 +149,7 @@ Stratified sampling was used to maintain class distribution across splits:
 | Color Space | RGB |
 | Standardized Size | 224×224 pixels |
 
-### 3.5 Class Distribution Analysis
+#### Class Distribution Analysis
 
 The dataset shows relatively balanced distribution across classes with a maximum imbalance ratio of approximately 1.09:1 (Diabetic Retinopathy to Glaucoma), which is considered mild. However, Focal Loss was still employed to ensure robust performance across all classes.
 
@@ -155,14 +157,14 @@ The dataset shows relatively balanced distribution across classes with a maximum
 
 ### 3.2 Methodology
 
-### 3.2 Overall Pipeline
+#### Overall Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           OcuNet Pipeline                                │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│   ┌──────────┐    ┌────────��─────┐    ┌──────────────┐    ┌──────────┐  │
+│   ┌──────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────┐  │
 │   │  Input   │───▶│Preprocessing │───▶│   Model      │───▶│ Output   │  │
 │   │  Image   │    │& Augmentation│    │(EfficientNet)│    │Prediction│  │
 │   └──────────┘    └──────────────┘    └──────────────┘    └──────────┘  │
@@ -175,7 +177,7 @@ The dataset shows relatively balanced distribution across classes with a maximum
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Data Preprocessing
+#### Data Preprocessing
 
 **Training Transforms:**
 ```python
@@ -196,7 +198,7 @@ The dataset shows relatively balanced distribution across classes with a maximum
 3. Normalize (ImageNet mean/std)
 ```
 
-### 4.3 Data Augmentation Strategy
+#### Data Augmentation Strategy
 
 | Augmentation | Parameters | Purpose |
 |--------------|------------|---------|
@@ -206,7 +208,7 @@ The dataset shows relatively balanced distribution across classes with a maximum
 | Random Affine | scale: 0.9-1.1 | Scale invariance |
 | Random Crop | 224 from 256 | Position invariance |
 
-### 4.4 Class Imbalance Handling
+#### Class Imbalance Handling
 
 Two complementary strategies were implemented:
 
@@ -230,7 +232,7 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 
 ### 3.3 Model Architecture
 
-### 5.1 Architecture Selection
+#### Architecture Selection
 
 **Selected Model:** EfficientNet-B0
 
@@ -240,7 +242,7 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 - Fits within 6GB GPU memory
 - Compound scaling for balanced depth/width/resolution
 
-### 5.2 Architecture Details
+#### Architecture Details
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -281,7 +283,7 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Model Statistics
+#### Model Statistics
 
 | Property | Value |
 |----------|-------|
@@ -292,21 +294,11 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 | Output Classes | 4 |
 | Model Size | ~18 MB |
 
-### 5.4 Alternative Architectures Supported
-
-| Model | Parameters | Notes |
-|-------|------------|-------|
-| EfficientNet-B0 | 4.6M | **Selected** - Best efficiency |
-| EfficientNet-B3 | 12.2M | Higher accuracy, more memory |
-| ResNet-50 | 25.6M | Classic architecture |
-| InceptionV3 | 23.8M | Multi-scale features |
-| ViT-B/16 | 86.6M | Transformer-based |
-
 ---
 
 ### 3.4 Training Process
 
-### 6.1 Training Configuration
+#### Training Configuration
 
 | Parameter | Value |
 |-----------|-------|
@@ -321,7 +313,7 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 | Mixed Precision | Enabled (FP16) |
 | Gradient Clipping | max_norm=1.0 |
 
-### 6.2 Training Environment
+#### Training Environment
 
 | Component | Specification |
 |-----------|---------------|
@@ -332,7 +324,7 @@ Focal Loss down-weights easy examples and focuses training on hard cases, improv
 | Python Version | 3.11 |
 | Training Time | ~15 minutes |
 
-### 6.3 Training Progress
+#### Training Progress
 
 ```
 Epoch  1/50: Train Acc: 68.93% | Val Acc: 81.36% | LR: 9.76e-05
@@ -348,16 +340,6 @@ Epoch 50/50: Train Acc: 98.95% | Val Acc: 87.36% | LR: 5.01e-05
 Best Validation Accuracy: 91.31% at Epoch 41
 ```
 
-### 6.4 Training Curves
-
-**Figure 1: Training History - Loss and Accuracy Curves**
-
-![Training History](evaluation_results/training_history.png)
-
-*The training curves show:*
-- **Loss (Left):** Training loss decreases steadily from 0.37 to 0.01. Validation loss fluctuates between 0.14-0.27, indicating some overfitting after epoch 20.
-- **Accuracy (Right):** Training accuracy increases from 69% to 99%. Validation accuracy plateaus around 87-91%, with best performance at epoch 41 (91.31%).
-
 **Observations:**
 1. Rapid initial learning (epochs 1-10)
 2. Gradual improvement with fluctuations (epochs 10-40)
@@ -369,7 +351,7 @@ Best Validation Accuracy: 91.31% at Epoch 41
 
 ### 3.5 Results and Evaluation
 
-### 7.1 Overall Performance Metrics
+#### Overall Performance Metrics
 
 | Metric | Value |
 |--------|-------|
@@ -379,7 +361,7 @@ Best Validation Accuracy: 91.31% at Epoch 41
 | **F1-Score (Macro)** | 86.79% |
 | **ROC-AUC (Macro)** | 97.88% |
 
-### 7.2 Per-Class Performance
+#### Per-Class Performance
 
 | Class | Precision | Recall | F1-Score | ROC-AUC | Support |
 |-------|-----------|--------|----------|---------|---------|
@@ -388,13 +370,7 @@ Best Validation Accuracy: 91.31% at Epoch 41
 | Glaucoma | 86.75% | 86.75% | 86.75% | 97.66% | 151 |
 | Normal | 83.57% | 72.67% | 77.74% | 95.55% | 161 |
 
-### 7.3 Confusion Matrix
-
-**Figure 2: Normalized Confusion Matrix**
-
-![Confusion Matrix](evaluation_results/confusion_matrix.png)
-
-**Confusion Matrix Analysis:**
+#### Confusion Matrix Analysis
 
 |  | Predicted Cataract | Predicted DR | Predicted Glaucoma | Predicted Normal |
 |--|-------------------|--------------|-------------------|------------------|
@@ -413,13 +389,7 @@ Best Validation Accuracy: 91.31% at Epoch 41
 - The model is conservative with "Normal" predictions, preferring to flag potential diseases
 - This behavior is clinically appropriate as false negatives (missed diseases) are more dangerous than false positives
 
-### 7.4 ROC Curves
-
-**Figure 3: ROC Curves for All Classes**
-
-![ROC Curves](evaluation_results/roc_curves.png)
-
-**ROC-AUC Scores:**
+#### ROC-AUC Scores
 
 | Class | AUC Score | Interpretation |
 |-------|-----------|----------------|
@@ -431,7 +401,7 @@ Best Validation Accuracy: 91.31% at Epoch 41
 
 All classes achieve AUC > 0.95, indicating excellent discriminative ability across different classification thresholds.
 
-### 7.5 Clinical Sensitivity Analysis
+#### Clinical Sensitivity Analysis
 
 For medical diagnostic systems, **sensitivity (recall)** is critical to minimize missed disease cases.
 
@@ -443,7 +413,7 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 
 **All disease classes exceed the 80% sensitivity threshold**, making OcuNet suitable for clinical screening applications.
 
-### 7.6 Error Analysis
+#### Error Analysis
 
 **Most Common Misclassifications:**
 
@@ -458,7 +428,7 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 
 ### 3.6 Explainability Analysis
 
-### 8.1 Grad-CAM Overview
+#### Grad-CAM Overview
 
 **Gradient-weighted Class Activation Mapping (Grad-CAM)** provides visual explanations by highlighting image regions that influenced the model's prediction.
 
@@ -474,19 +444,9 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 - 🔴 **Red/Yellow:** High importance (key diagnostic regions)
 - 🔵 **Blue/Purple:** Low importance (background)
 
-### 8.2 Cataract Detection
-
-**Figure 4: Grad-CAM Visualization - Cataract Sample 1**
-
-![Cataract GradCAM 1](explainability_results/gradcam_cataract_0.png)
+#### Cataract Detection
 
 **Prediction:** Cataract (99.6% confidence)
-
-**Figure 5: Grad-CAM Visualization - Cataract Sample 2**
-
-![Cataract GradCAM 2](explainability_results/gradcam_cataract_1.png)
-
-**Prediction:** Cataract (99.2% confidence)
 
 **Analysis:**
 - The model focuses on the **central lens region** where cataract causes clouding
@@ -494,17 +454,7 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 - Predictions are highly confident (>99%)
 - Focus pattern is clinically appropriate for cataract detection
 
-### 8.3 Diabetic Retinopathy Detection
-
-**Figure 6: Grad-CAM Visualization - Diabetic Retinopathy Sample 1**
-
-![DR GradCAM 1](explainability_results/gradcam_diabetic_retinopathy_0.png)
-
-**Prediction:** Diabetic Retinopathy (100.0% confidence)
-
-**Figure 7: Grad-CAM Visualization - Diabetic Retinopathy Sample 2**
-
-![DR GradCAM 2](explainability_results/gradcam_diabetic_retinopathy_1.png)
+#### Diabetic Retinopathy Detection
 
 **Prediction:** Diabetic Retinopathy (100.0% confidence)
 
@@ -514,39 +464,18 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 - Avoids the optic disc (bright spot on left), focusing on pathological regions
 - 100% confidence indicates clear diabetic retinopathy features
 
-### 8.4 Glaucoma Detection
-
-**Figure 8: Grad-CAM Visualization - Glaucoma Sample 1**
-
-![Glaucoma GradCAM 1](explainability_results/gradcam_glaucoma_0.png)
+#### Glaucoma Detection
 
 **Prediction:** Glaucoma (97.1% confidence)
-
-**Figure 9: Grad-CAM Visualization - Glaucoma Sample 2**
-
-![Glaucoma GradCAM 2](explainability_results/gradcam_glaucoma_1.png)
-
-**Prediction:** Glaucoma (98.7% confidence)
 
 **Analysis:**
 - Model focuses on the **optic disc and cup region** (critical for glaucoma diagnosis)
 - Attention to the **neuroretinal rim** where glaucoma causes thinning
-- Sample 2 shows focus on specific structural abnormalities
 - High confidence (>97%) with clinically relevant focus areas
 
-### 8.5 Normal Classification
-
-**Figure 10: Grad-CAM Visualization - Normal Sample 1**
-
-![Normal GradCAM 1](explainability_results/gradcam_normal_0.png)
+#### Normal Classification
 
 **Prediction:** Normal (95.9% confidence)
-
-**Figure 11: Grad-CAM Visualization - Normal Sample 2**
-
-![Normal GradCAM 2](explainability_results/gradcam_normal_1.png)
-
-**Prediction:** Normal (98.6% confidence)
 
 **Analysis:**
 - Model examines **broad retinal areas** rather than specific pathological regions
@@ -554,7 +483,7 @@ For medical diagnostic systems, **sensitivity (recall)** is critical to minimize
 - Attention distributed across multiple regions (no single abnormality)
 - Confidence is high but slightly lower than disease predictions (appropriate conservatism)
 
-### 8.6 Explainability Summary
+#### Explainability Summary
 
 | Class | Focus Regions | Clinical Relevance |
 |-------|---------------|-------------------|
@@ -586,7 +515,38 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 
 **Combined Dataset:** 7,417 total images (Train: 4,871 | Val: 1,273 | Test: 1,273)
 
-**28 Disease Classes:** Disease_Risk, DR, ARMD, MH, DN, MYA, BRVO, TSLN, ERM, LS, MS, CSR, ODC, CRVO, AH, ODP, ODE, AION, PT, RT, RS, CRS, EDN, RPEC, MHL, CATARACT, GLAUCOMA, NORMAL
+**28 Disease Classes:**
+
+| # | Code | Disease | Test Support |
+|---|------|---------|-------------|
+| 0 | Disease_Risk | General disease risk indicator | 978 |
+| 1 | DR | Diabetic Retinopathy | 287 |
+| 2 | ARMD | Age-Related Macular Degeneration | 31 |
+| 3 | MH | Macular Hole | 104 |
+| 4 | DN | Diabetic Nephropathy | 46 |
+| 5 | MYA | Myopia | 32 |
+| 6 | BRVO | Branch Retinal Vein Occlusion | 23 |
+| 7 | TSLN | Tessellation | 53 |
+| 8 | ERM | Epiretinal Membrane | 5 |
+| 9 | LS | Laser Scars | 15 |
+| 10 | MS | Maculopathy | 7 |
+| 11 | CSR | Central Serous Retinopathy | 13 |
+| 12 | ODC | Optic Disc Cupping | 91 |
+| 13 | CRVO | Central Retinal Vein Occlusion | 9 |
+| 14 | AH | Asteroid Hyalosis | 5 |
+| 15 | ODP | Optic Disc Pallor | 24 |
+| 16 | ODE | Optic Disc Edema | 17 |
+| 17 | AION | Anterior Ischemic Optic Neuropathy | 4 |
+| 18 | PT | Pigment Changes | 4 |
+| 19 | RT | Retinitis | 5 |
+| 20 | RS | Retinal Scars | 14 |
+| 21 | CRS | Chorioretinal Scars | 11 |
+| 22 | EDN | Macular Edema | 4 |
+| 23 | RPEC | RPE Changes | 4 |
+| 24 | MHL | Macular Holes (Large) | 3 |
+| 25 | CATARACT | Cataract | 158 |
+| 26 | GLAUCOMA | Glaucoma | 242 |
+| 27 | NORMAL | Normal/Healthy | 295 |
 
 ### 4.2 Methodology
 
@@ -596,18 +556,63 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 - **RandAugment**: Strong data augmentation (N=2, M=9)
 - **Learning Rate Warmup**: 5 epochs linear warmup to 5e-4
 - **EMA (Exponential Moving Average)**: Decay=0.999 for stable evaluation
+- **Label Smoothing**: 0.1 for regularization
+- **Random Erasing**: 30% probability for occlusion robustness
+- **Stronger Augmentation**: ±45° rotation, vertical flip, shear=15°, wider color jitter
 
 ### 4.3 Model Architecture
 
-**EfficientNet-B2 + Multi-Label Head**
+**EfficientNet-B2 + Improved Multi-Label Head**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              OcuNet Phase 2 Architecture                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Input: RGB Image (3 × 224 × 224)                           │
+│                         │                                    │
+│                         ▼                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              EfficientNet-B2 Backbone                │    │
+│  │              (Pretrained on ImageNet)                │    │
+│  │                                                      │    │
+│  │  • Compound scaled (depth, width, resolution)       │    │
+│  │  • Mobile Inverted Bottleneck (MBConv) blocks       │    │
+│  │  • Squeeze-and-Excitation attention                 │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                         │                                    │
+│                         ▼                                    │
+│               Feature Vector (1408)                          │
+│                         │                                    │
+│                         ▼                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │         Improved Classification Head                 │    │
+│  │                                                      │    │
+│  │  • Squeeze-and-Excitation Block (SE)                │    │
+│  │  • Dropout (p=0.5)                                  │    │
+│  │  • Linear: 1408 → 512 + BatchNorm + GELU            │    │
+│  │  • Dropout (p=0.25)                                 │    │
+│  │  • Linear: 512 → 256 + BatchNorm + GELU             │    │
+│  │  • Dropout (p=0.2)                                  │    │
+│  │  • Linear: 256 → 28                                 │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                         │                                    │
+│                         ▼                                    │
+│        Logits (28) → Sigmoid → Independent Probabilities     │
+│                                                              │
+│  Output: P(Disease_i) for each of 28 classes                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
 | Property | Value |
 |----------|-------|
-| Architecture | EfficientNet-B2 + Custom Multi-Label Head |
+| Architecture | EfficientNet-B2 + Improved Classification Head |
 | Total Parameters | 10,060,022 |
+| Trainable Parameters | 10,060,022 |
 | Input Size | 224 × 224 × 3 |
 | Output Classes | 28 (independent sigmoids) |
 | Loss Function | Asymmetric Loss (ASL) |
+| Classification Head | SE Block + 3-layer MLP with BatchNorm + GELU |
 
 ### 4.4 Training Configuration
 
@@ -616,38 +621,152 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 | Batch Size | 16 |
 | Maximum Epochs | 150 |
 | Learning Rate | 5e-5 → 5e-4 (warmup) |
+| Peak Learning Rate | 5e-4 |
 | Optimizer | AdamW |
-| Early Stopping | 25 epochs |
+| Weight Decay | 1e-4 |
+| Early Stopping | 25 epochs patience |
 | Mixed Precision | FP16 |
+| LR Schedule | Cosine Annealing after warmup |
+| EMA Decay | 0.999 |
+| Label Smoothing | 0.1 |
 
-### 4.5 Results
+### 4.5 Training Progress
 
-**Overall Metrics:**
+```
+Epoch   1/150: Val F1: 0.0916 | mAP: 0.0737 | ROC-AUC: 0.4741 [SAVED]
+Epoch   5/150: Val F1: 0.1070 | mAP: 0.1042 | ROC-AUC: 0.6444 (warmup end)
+Epoch  20/150: Val F1: 0.1406 | mAP: 0.4406 | ROC-AUC: 0.9097 [SAVED]
+Epoch  42/150: Val F1: 0.2047 | mAP: 0.5422 | ROC-AUC: 0.9319 [SAVED]
+Epoch  66/150: Val F1: 0.2856 | mAP: 0.5627 | ROC-AUC: 0.9371 [SAVED]
+Epoch  83/150: Val F1: 0.3181 | mAP: 0.5827 | ROC-AUC: 0.9424 [SAVED]
+Epoch  94/150: Val F1: 0.3379 | mAP: 0.5815 | ROC-AUC: 0.9384 [SAVED]
+Epoch 120/150: Val F1: 0.3588 | mAP: 0.5646 | ROC-AUC: 0.9364 [SAVED]
+Epoch 135/150: Val F1: 0.3699 | mAP: 0.5604 | ROC-AUC: 0.9355 [SAVED] ← BEST
+Epoch 150/150: Val F1: 0.3533 | mAP: 0.5592 | ROC-AUC: 0.9359
 
-| Metric | Value |
-|--------|-------|
-| **ROC-AUC (Macro)** | 93.68% |
-| **mAP** | 53.83% |
-| **F1 Score (Micro)** | 52.96% |
-| **Recall (Macro)** | 74.03% |
-| **Hamming Loss** | 0.1111 |
+Best Validation F1: 0.3699 at Epoch 135
+Best Validation mAP: 0.5604
+```
 
-**Key Disease Performance:**
+**Observations:**
+1. ROC-AUC rapidly improved to >0.90 by epoch 20 and stabilized around 0.93-0.94
+2. F1 score steadily improved from 0.09 to 0.37 over 135 epochs
+3. mAP peaked around 0.58 and stabilized
+4. Model continued improving slowly even in late epochs (epoch 135 best)
+5. Train mAP reached 0.95, indicating the model learned the training distribution well
 
-| Disease | Recall | AUC |
-|---------|--------|-----|
-| CATARACT | 100.0% | 99.3% |
-| MH (Macular Hole) | 100.0% | 98.4% |
-| DR | 96.2% | 93.6% |
-| GLAUCOMA | 96.3% | 90.5% |
-| ARMD | 90.3% | 97.5% |
-| NORMAL | 99.3% | 91.9% |
+### 4.6 Results
 
-**22 out of 28 classes achieve ≥80% sensitivity.**
+#### Overall Metrics
+
+| Metric | Default Threshold (0.5) | Optimized Thresholds |
+|--------|------------------------|---------------------|
+| **F1 Score (Macro)** | 33.79% | **54.93%** |
+| **F1 Score (Micro)** | 52.96% | **73.53%** |
+| **F1 Score (Samples)** | 55.67% | - |
+| **Precision (Macro)** | 23.65% | - |
+| **Recall (Macro)** | 74.03% | - |
+| **mAP** | 53.83% | - |
+| **ROC-AUC (Macro)** | **93.68%** | - |
+| **Hamming Loss** | 0.1111 | - |
+| **Exact Match Ratio** | 9.98% | - |
+
+#### Per-Class Performance
+
+| Class | Precision | Recall | F1 | AP | AUC | Support |
+|-------|-----------|--------|----|----|-----|---------|
+| Disease_Risk | 0.955 | 0.827 | 0.887 | 0.973 | 0.912 | 978 |
+| NORMAL | 0.388 | 0.993 | 0.558 | 0.742 | 0.919 | 295 |
+| DR | 0.416 | 0.962 | 0.580 | 0.845 | 0.936 | 287 |
+| GLAUCOMA | 0.308 | 0.963 | 0.467 | 0.720 | 0.905 | 242 |
+| CATARACT | 0.347 | 1.000 | 0.515 | 0.958 | 0.993 | 158 |
+| MH | 0.272 | 1.000 | 0.427 | 0.865 | 0.984 | 104 |
+| ODC | 0.178 | 0.923 | 0.299 | 0.546 | 0.909 | 91 |
+| TSLN | 0.202 | 1.000 | 0.337 | 0.653 | 0.984 | 53 |
+| DN | 0.102 | 0.957 | 0.184 | 0.312 | 0.910 | 46 |
+| MYA | 0.244 | 0.938 | 0.387 | 0.805 | 0.975 | 32 |
+| ARMD | 0.243 | 0.903 | 0.384 | 0.729 | 0.975 | 31 |
+| ODP | 0.133 | 0.750 | 0.226 | 0.344 | 0.952 | 24 |
+| BRVO | 0.333 | 0.826 | 0.475 | 0.845 | 0.980 | 23 |
+| ODE | 0.255 | 0.824 | 0.389 | 0.795 | 0.957 | 17 |
+| LS | 0.113 | 0.800 | 0.198 | 0.371 | 0.953 | 15 |
+| RS | 0.361 | 0.929 | 0.520 | 0.731 | 0.995 | 14 |
+| CSR | 0.256 | 0.769 | 0.385 | 0.530 | 0.989 | 13 |
+| CRS | 0.095 | 0.364 | 0.151 | 0.216 | 0.946 | 11 |
+| CRVO | 0.195 | 0.889 | 0.320 | 0.737 | 0.990 | 9 |
+| MS | 0.167 | 0.429 | 0.240 | 0.360 | 0.918 | 7 |
+| ERM | 0.167 | 0.200 | 0.182 | 0.066 | 0.679 | 5 |
+| AH | 0.185 | 1.000 | 0.312 | 0.821 | 0.999 | 5 |
+| RT | 0.250 | 0.400 | 0.308 | 0.315 | 0.983 | 5 |
+| AION | 0.182 | 0.500 | 0.267 | 0.348 | 0.837 | 4 |
+| PT | 0.053 | 0.250 | 0.087 | 0.077 | 0.856 | 4 |
+| EDN | 0.091 | 0.500 | 0.154 | 0.193 | 0.927 | 4 |
+| RPEC | 0.062 | 0.500 | 0.111 | 0.067 | 0.886 | 4 |
+| MHL | 0.067 | 0.333 | 0.111 | 0.110 | 0.984 | 3 |
+
+#### Clinical Sensitivity Analysis
+
+| Disease | Recall | Rating |
+|---------|--------|--------|
+| CATARACT | 1.000 | ✅ EXCELLENT |
+| MH | 1.000 | ✅ EXCELLENT |
+| TSLN | 1.000 | ✅ EXCELLENT |
+| AH | 1.000 | ✅ EXCELLENT |
+| NORMAL | 0.993 | ✅ EXCELLENT |
+| GLAUCOMA | 0.963 | ✅ EXCELLENT |
+| DR | 0.962 | ✅ EXCELLENT |
+| DN | 0.957 | ✅ EXCELLENT |
+| MYA | 0.938 | ✅ EXCELLENT |
+| RS | 0.929 | ✅ EXCELLENT |
+| ODC | 0.923 | ✅ EXCELLENT |
+| ARMD | 0.903 | ✅ EXCELLENT |
+| CRVO | 0.889 | ✅ GOOD |
+| Disease_Risk | 0.827 | ✅ GOOD |
+| BRVO | 0.826 | ✅ GOOD |
+| ODE | 0.824 | ✅ GOOD |
+| LS | 0.800 | ✅ GOOD |
+| CSR | 0.769 | ⚠️ MODERATE |
+| ODP | 0.750 | ⚠️ MODERATE |
+| AION | 0.500 | ❌ NEEDS IMPROVEMENT |
+| EDN | 0.500 | ❌ NEEDS IMPROVEMENT |
+| RPEC | 0.500 | ❌ NEEDS IMPROVEMENT |
+| MS | 0.429 | ❌ NEEDS IMPROVEMENT |
+| RT | 0.400 | ❌ NEEDS IMPROVEMENT |
+| CRS | 0.364 | ❌ NEEDS IMPROVEMENT |
+| MHL | 0.333 | ❌ NEEDS IMPROVEMENT |
+| PT | 0.250 | ❌ NEEDS IMPROVEMENT |
+| ERM | 0.200 | ❌ NEEDS IMPROVEMENT |
+
+**Summary:** 17 out of 28 classes achieve ≥80% sensitivity. Classes with low sensitivity have extremely small test sets (3-11 samples), making reliable evaluation challenging.
+
+### 4.7 Threshold Optimization
+
+Per-class threshold optimization significantly improved F1 scores:
+
+| Class | Optimized Threshold | Optimized F1 |
+|-------|-------------------|-------------|
+| Disease_Risk | 0.40 | 0.8967 |
+| DR | 0.70 | 0.7896 |
+| ARMD | 0.80 | 0.6742 |
+| MH | 0.85 | 0.7664 |
+| CATARACT | 0.85 | 0.8820 |
+| GLAUCOMA | 0.70 | 0.6183 |
+| NORMAL | 0.75 | 0.6382 |
+| BRVO | 0.75 | 0.7111 |
+| AION | 0.55 | 0.7692 |
+| AH | 0.65 | 0.7500 |
+| RS | 0.75 | 0.7568 |
+| ODE | 0.85 | 0.6957 |
+| MYA | 0.85 | 0.6452 |
+| TSLN | 0.85 | 0.6710 |
+| PT | 0.85 | 0.6667 |
+| CRVO | 0.85 | 0.6000 |
+| CSR | 0.85 | 0.5882 |
+| RT | 0.80 | 0.5333 |
 
 **With Optimized Thresholds:**
-- F1 (Macro): 54.93%
-- F1 (Micro): 73.53%
+- F1 (Macro): **54.93%** (vs 33.79% default) — **+62.6% improvement**
+- F1 (Micro): **73.53%** (vs 52.96% default) — **+38.8% improvement**
 
 ---
 
@@ -656,8 +775,9 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 ### 5.1 Installation
 
 ```bash
-# Clone or create project directory
-mkdir OcuNet && cd OcuNet
+# Clone the repository
+git clone https://github.com/Utkarsh2929/OcuNet.git
+cd OcuNet
 
 # Create virtual environment (Python 3.11 recommended)
 py -3.11 -m venv venv
@@ -680,80 +800,90 @@ pip install -r requirements.txt
 ```
 OcuNet/
 ├── config/
-│   └── config.yaml              # Configuration file
-├── data/
-│   └── dataset/                 # Dataset directory
-│       ├── cataract/
-│       ├── diabetic_retinopathy/
-│       ├── glaucoma/
-│       └── normal/
+│   └── config.yaml              # Training & model configuration
+├── data/                         # Dataset directory (not in git)
+│   ├── dataset/                 # Phase 1 dataset (4 classes)
+│   └── rfmid/                   # Phase 2 RFMiD dataset (28 classes)
 ├── src/
-│   ├── __init__.py
-│   ├── dataset.py               # Data loading & augmentation
-│   ├── models.py                # Model architectures
-│   ├── train.py                 # Training logic
-│   ├── evaluate.py              # Evaluation metrics
-│   └── explainability.py        # Grad-CAM visualizations
-├── checkpoints/
-│   ├── best_model.pth           # Best trained model
+│   ├── __init__.py              # Package exports
+│   ├── dataset.py               # Data loading, augmentation, oversampling
+│   ├── models.py                # EfficientNet-B2 model, ASL loss, SE blocks
+│   ├── train.py                 # Training loop with EMA, warmup, cosine LR
+│   ├── evaluate.py              # Evaluation metrics, plots, reports
+│   └── utils.py                 # Utility functions
+├── checkpoints/                 # Saved model weights (not in git)
+│   ├── best_model.pth           # Best trained model (~116 MB)
 │   └── latest_checkpoint.pth    # Latest checkpoint
-├── evaluation_results/
-│   ├── confusion_matrix.png
-│   ├── roc_curves.png
-│   ├── training_history.png
-│   ├── evaluation_report.txt
-│   └── metrics.json
-├── explainability_results/
-│   └── gradcam_*.png            # Grad-CAM visualizations
-├── train_pipeline.py            # Main training script
-├── predict.py                   # Prediction interface
+├── evaluation_results/          # Metrics, plots, reports (not in git)
+├── train_pipeline.py            # Main training entry point
+├── predict.py                   # Multi-label prediction interface
+├── setup_datasets.py            # Dataset setup & verification
 ├── requirements.txt             # Dependencies
-└── README.md
+├── Project Report.md            # This document
+├── Training Log *.txt           # Training run logs
+└── README.md                    # Quick-start documentation
 ```
 
-### 5.3 Training
+### 5.3 Dataset Setup
+
+**Phase 1 Dataset:** Download from [Kaggle](https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification) and extract to `data/dataset/`:
+
+```
+data/dataset/
+├── cataract/
+├── diabetic_retinopathy/
+├── glaucoma/
+└── normal/
+```
+
+**Phase 2 Dataset (RFMiD):** Download from [IEEE Dataport](https://ieee-dataport.org/open-access/retinal-fundus-multi-disease-image-dataset-rfmid) and extract to `data/rfmid/`:
+
+```
+data/rfmid/
+├── Training_Set/
+├── Evaluation_Set/
+├── Test_Set/
+└── RFMiD_*.csv
+```
+
+Use `setup_datasets.py` to verify dataset setup:
+```bash
+python setup_datasets.py verify
+```
+
+### 5.4 Training
 
 ```bash
-# Full pipeline (train + evaluate + explain)
+# Full pipeline (train + evaluate + optimize thresholds)
 python train_pipeline.py --mode all
 
 # Individual modes
 python train_pipeline.py --mode train      # Training only
 python train_pipeline.py --mode evaluate   # Evaluation only
-python train_pipeline.py --mode explain    # Grad-CAM only
+python train_pipeline.py --mode optimize   # Threshold optimization only
 
 # Custom config
 python train_pipeline.py --config path/to/config.yaml --mode all
 ```
 
-### 5.4 Prediction API
+### 5.5 Prediction API
 
 **Python Interface:**
 
 ```python
-from predict import EyeDiseaseClassifier
+from predict import ImprovedMultiLabelClassifier
 
 # Initialize classifier (loads model automatically)
-classifier = EyeDiseaseClassifier()
+classifier = ImprovedMultiLabelClassifier()
 
 # Single image prediction
 result = classifier.predict("path/to/retinal_image.jpg")
 
-print(result)
-# Output:
-# {
-#     'predicted_class': 'diabetic_retinopathy',
-#     'confidence': 0.9394,
-#     'probabilities': {
-#         'cataract': 0.0123,
-#         'diabetic_retinopathy': 0.9394,
-#         'glaucoma': 0.0256,
-#         'normal': 0.0227
-#     }
-# }
+print(result['diseases'])          # ['DR', 'ARMD']
+print(result['probabilities'])     # {'DR': 0.85, 'ARMD': 0.72, ...}
 
-# Batch prediction
-results = classifier.predict_batch(["img1.jpg", "img2.jpg", "img3.jpg"])
+# Generate a detailed medical report
+classifier.generate_report(result, output_path="report.txt")
 ```
 
 **Command Line:**
@@ -762,82 +892,11 @@ results = classifier.predict_batch(["img1.jpg", "img2.jpg", "img3.jpg"])
 python predict.py path/to/image.jpg
 ```
 
-Output:
-```
-Model loaded on cuda
-
-Prediction: diabetic_retinopathy
-Confidence: 93.94%
-
-All probabilities:
-  cataract: 1.23%
-  diabetic_retinopathy: 93.94%
-  glaucoma: 2.56%
-  normal: 2.27%
-```
-
-### 5.5 Integration Example
-
-**Flask Web Application:**
-
-```python
-from flask import Flask, request, jsonify
-from predict import EyeDiseaseClassifier
-
-app = Flask(__name__)
-classifier = EyeDiseaseClassifier()
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-    
-    file = request.files['image']
-    file.save('temp.jpg')
-    
-    result = classifier.predict('temp.jpg')
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-```
-
-**Streamlit Application:**
-
-```python
-import streamlit as st
-from predict import EyeDiseaseClassifier
-from PIL import Image
-
-st.title("🔬 OcuNet - Eye Disease Classification")
-
-classifier = EyeDiseaseClassifier()
-
-uploaded_file = st.file_uploader("Upload a retinal image", type=['jpg', 'jpeg', 'png'])
-
-if uploaded_file:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
-    
-    # Save and predict
-    image.save("temp.jpg")
-    result = classifier.predict("temp.jpg")
-    
-    # Display results
-    st.success(f"**Prediction:** {result['predicted_class']}")
-    st.info(f"**Confidence:** {result['confidence']:.2%}")
-    
-    st.subheader("All Probabilities")
-    st.bar_chart(result['probabilities'])
-```
-
 ---
 
 ## 6. Conclusion
 
 ### 6.1 Achievements
-
-OcuNet successfully demonstrates:
 
 **Phase 1:**
 1. **High Accuracy:** 86.89% test accuracy with 97.88% ROC-AUC
@@ -847,18 +906,20 @@ OcuNet successfully demonstrates:
 
 **Phase 2:**
 1. **Multi-Label Detection:** 28 retinal conditions detected simultaneously
-2. **High Disease Sensitivity:** 22/28 classes achieve ≥80% recall
-3. **Strong ROC-AUC:** 93.68% macro-average across all classes
-4. **Optimized Thresholds:** Per-class thresholds improve F1 to 54.93% macro
+2. **High ROC-AUC:** 93.68% macro-average across all 28 classes
+3. **Strong Sensitivity:** 17/28 classes achieve ≥80% recall
+4. **Optimized Thresholds:** Per-class thresholds improve F1 (Micro) to 73.53%
+5. **Co-morbidity Detection:** Multiple diseases detected in single images
 
 ### 6.2 Strengths
 
 | Strength | Phase 1 | Phase 2 |
-|----------|---------|---------|
+|----------|---------|---------| 
 | Sensitivity | 94% cataract, 94% DR, 87% glaucoma | 100% cataract, 96% DR, 96% glaucoma |
 | ROC-AUC | All classes >95% | 93.68% macro (28 classes) |
 | Disease Coverage | 4 classes | 28 classes |
 | Co-morbidity Detection | No | Yes |
+| Threshold Optimization | N/A | Per-class optimized |
 | Interpretable | Grad-CAM | Grad-CAM |
 
 ### 6.3 Limitations
@@ -866,7 +927,7 @@ OcuNet successfully demonstrates:
 | Limitation | Impact | Mitigation |
 |------------|--------|------------|
 | Normal class accuracy (73% Phase 1) | May over-refer healthy patients | Clinical verification |
-| Rare disease performance | Low precision for rare classes | Per-class thresholds |
+| Rare disease performance | Low precision for rare classes (<10 samples) | Per-class thresholds, collect more data |
 | Dataset diversity | May not generalize to all populations | Collect more diverse data |
 | Single image input | No temporal/multi-view analysis | Future enhancement |
 
@@ -884,10 +945,10 @@ OcuNet is suitable for:
 
 ### 7.1 Short-term Improvements
 
-1. **Increase Normal class accuracy**
-   - Add more normal samples
+1. **Increase rare class performance**
+   - Collect additional samples for classes with <10 test samples
    - Implement harder negative mining
-   - Use attention mechanisms
+   - Explore synthetic data generation (e.g., diffusion models)
 
 2. **Multi-severity classification**
    - DR severity grading (mild/moderate/severe/proliferative)
@@ -913,11 +974,6 @@ OcuNet is suitable for:
    - Edge device optimization
    - ONNX/TensorRT conversion
 
-4. **Additional diseases**
-   - Age-related macular degeneration
-   - Retinal detachment
-   - Hypertensive retinopathy
-
 ---
 
 ## 8. References
@@ -940,52 +996,79 @@ OcuNet is suitable for:
 
 ## 9. Appendix
 
-### A. Complete Configuration
+### A. Complete Configuration (Phase 2)
 
 ```yaml
 # config/config.yaml
 
+# Dataset Configuration
 dataset:
-  root_dir: "data/dataset"
+  phase1_root: "data/dataset"
+  use_phase1: true
+  phase2_root: "data/rfmid"
+  use_phase2: true
   image_size: 224
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
   random_seed: 42
+  min_samples_per_class: 10
+  oversample_rare_classes: true
+  oversample_threshold: 50
+  oversample_factor: 3
 
-classes:
-  - "cataract"
-  - "diabetic_retinopathy"
-  - "glaucoma"
-  - "normal"
-
+# Training Configuration
 training:
   batch_size: 16
-  num_epochs: 50
-  learning_rate: 0.0001
+  num_epochs: 150
+  learning_rate: 0.00005
   weight_decay: 0.0001
-  early_stopping_patience: 10
+  early_stopping_patience: 25
   num_workers: 0
+  threshold: 0.5
+  use_class_specific_thresholds: true
+  warmup_epochs: 5
+  label_smoothing: 0.1
 
+# Model Configuration
 model:
-  architecture: "efficientnet_b0"
+  architecture: "efficientnet_b2"
   pretrained: true
-  dropout_rate: 0.3
-  use_focal_loss: true
-  focal_loss_gamma: 2.0
+  dropout_rate: 0.5
+  use_asymmetric_loss: true
+  asl_gamma_neg: 4
+  asl_gamma_pos: 1
+  asl_clip: 0.05
+  multi_label: true
 
+# Augmentation Configuration
 augmentation:
-  rotation_degrees: 30
+  rotation_degrees: 45
   horizontal_flip: true
-  vertical_flip: false
-  brightness_range: [0.8, 1.2]
-  contrast_range: [0.8, 1.2]
-  zoom_range: [0.9, 1.1]
+  vertical_flip: true
+  zoom_range: [0.8, 1.2]
+  shear_range: 15
+  brightness_range: [0.6, 1.4]
+  contrast_range: [0.6, 1.4]
+  saturation_range: [0.8, 1.2]
+  hue_range: 0.1
+  random_erasing: true
+  random_erasing_prob: 0.3
+  random_erasing_scale: [0.02, 0.2]
+  use_randaugment: true
+  randaugment_n: 2
+  randaugment_m: 9
 
+# Output
 output:
   checkpoint_dir: "checkpoints"
   results_dir: "evaluation_results"
   explainability_dir: "explainability_results"
+
+# Experiment
+experiment:
+  name: "ocunet_phase2_improved"
+  version: "2.1.0"
 ```
 
 ### B. Dependencies
@@ -1004,49 +1087,33 @@ tqdm>=4.65.0
 PyYAML>=6.0
 ```
 
-### C. Full Evaluation Metrics
+### C. Phase 1 Full Evaluation Metrics
 
 ```json
 {
   "overall": {
-    "accuracy": 0.8688783570300158,
-    "precision_macro": 0.8705693735600739,
-    "recall_macro": 0.8689898437774913,
-    "f1_macro": 0.8678830930901618
+    "accuracy": 0.8689,
+    "precision_macro": 0.8706,
+    "recall_macro": 0.8690,
+    "f1_macro": 0.8679
   },
   "per_class": {
-    "cataract": {
-      "precision": 0.9545454545454546,
-      "recall": 0.9423076923076923,
-      "f1_score": 0.9483870967741935
-    },
-    "diabetic_retinopathy": {
-      "precision": 0.824468085106383,
-      "recall": 0.9393939393939394,
-      "f1_score": 0.8781869688385269
-    },
-    "glaucoma": {
-      "precision": 0.8675496688741722,
-      "recall": 0.8675496688741722,
-      "f1_score": 0.8675496688741722
-    },
-    "normal": {
-      "precision": 0.8357142857142857,
-      "recall": 0.7267080745341615,
-      "f1_score": 0.7774086378737541
-    }
+    "cataract": { "precision": 0.9545, "recall": 0.9423, "f1_score": 0.9484 },
+    "diabetic_retinopathy": { "precision": 0.8245, "recall": 0.9394, "f1_score": 0.8782 },
+    "glaucoma": { "precision": 0.8675, "recall": 0.8675, "f1_score": 0.8675 },
+    "normal": { "precision": 0.8357, "recall": 0.7267, "f1_score": 0.7774 }
   },
   "roc_auc": {
-    "macro": 0.9788304047366287,
-    "cataract": 0.9965865720582702,
-    "diabetic_retinopathy": 0.9865708365708366,
-    "glaucoma": 0.976642576461213,
-    "normal": 0.9555216338561954
+    "macro": 0.9788,
+    "cataract": 0.9966,
+    "diabetic_retinopathy": 0.9866,
+    "glaucoma": 0.9766,
+    "normal": 0.9555
   }
 }
 ```
 
-### D. Training Log Summary
+### D. Phase 1 Training Log Summary
 
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc | LR | Saved |
 |-------|------------|-----------|----------|---------|-----|-------|
@@ -1058,7 +1125,7 @@ PyYAML>=6.0
 | 28 | 0.0226 | 97.90% | 0.1485 | 88.94% | 2.54e-06 | ✓ |
 | 31 | 0.0361 | 96.37% | 0.1724 | 89.89% | 9.98e-05 | ✓ |
 | **41** | **0.0335** | **97.29%** | **0.1434** | **91.31%** | **8.25e-05** | **✓ BEST** |
-| 50 | 0.0146 | 98.95% | 0.2146 | 87.36% | 5.01e-05 | |
+| 50 | 0.0146 | 98.95% | 0.2146 | 87.36% | |
 
 ---
 
@@ -1067,8 +1134,8 @@ PyYAML>=6.0
 | Property | Value |
 |----------|-------|
 | Project Name | OcuNet |
-| Version | 2.0.0 |
-| Last Updated | January 2026 |
+| Version | 2.1.0 |
+| Last Updated | February 2026 |
 | Author | Utkarsh Gautam |
 | License | MIT |
 
