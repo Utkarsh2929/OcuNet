@@ -1,0 +1,102 @@
+# ===========================================
+# OCUNET PHASE 2 - IMPROVED CONFIGURATION
+# ===========================================
+
+# Dataset Configuration
+dataset:
+  phase1_root: "data/dataset"
+  use_phase1: true
+
+  phase2_root: "data/rfmid"
+  use_phase2: true
+
+  image_size: 224
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  random_seed: 42
+
+  # IMPROVED: Higher minimum samples
+  min_samples_per_class: 10
+
+  # IMPROVED: Oversampling for rare classes
+  oversample_rare_classes: true
+  oversample_threshold: 50  # Classes with <50 samples get oversampled
+  oversample_factor: 3      # Multiply rare class samples by this
+
+# Training Configuration - IMPROVED
+training:
+  batch_size: 16
+  num_epochs: 150           # More epochs
+  learning_rate: 0.00005    # Lower LR for fine-tuning
+  weight_decay: 0.0001
+  early_stopping_patience: 25  # More patience
+  num_workers: 0
+
+  # IMPROVED: Dynamic thresholding
+  threshold: 0.5
+  use_class_specific_thresholds: true
+
+  # IMPROVED: Warmup
+  warmup_epochs: 5
+
+  # IMPROVED: Label smoothing
+  label_smoothing: 0.1
+
+# Model Configuration - IMPROVED
+model:
+  architecture: "efficientnet_b2"  # Stronger backbone
+  pretrained: true
+  dropout_rate: 0.5               # Higher dropout
+
+  # IMPROVED: Better loss function
+  use_asymmetric_loss: true
+  asl_gamma_neg: 4                # Focus on hard negatives
+  asl_gamma_pos: 1
+  asl_clip: 0.05
+
+  # Fallback to focal loss if ASL disabled
+  use_focal_loss: true
+  focal_loss_gamma: 2.0
+
+  multi_label: true
+
+# Augmentation Configuration - IMPROVED (Stronger)
+augmentation:
+  # Geometric
+  rotation_degrees: 45
+  horizontal_flip: true
+  vertical_flip: true
+  zoom_range: [0.8, 1.2]       # Wider range
+  shear_range: 15               # NEW
+
+  # Color
+  brightness_range: [0.6, 1.4]  # Wider range
+  contrast_range: [0.6, 1.4]
+  saturation_range: [0.8, 1.2]  # NEW
+  hue_range: 0.1                # NEW
+
+  # Advanced
+  random_erasing: true
+  random_erasing_prob: 0.3
+  random_erasing_scale: [0.02, 0.2]
+
+  # NEW: RandAugment style
+  use_randaugment: true
+  randaugment_n: 2              # Number of transforms
+  randaugment_m: 9              # Magnitude
+
+  # Disabled for multi-label (complex interactions)
+  mixup_alpha: 0.0
+  cutmix_alpha: 0.0
+
+# Output
+output:
+  checkpoint_dir: "checkpoints"
+  results_dir: "evaluation_results"
+  explainability_dir: "explainability_results"
+
+# Experiment
+experiment:
+  name: "ocunet_phase2_improved"
+  version: "2.1.0"
