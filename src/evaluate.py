@@ -4,6 +4,7 @@ Multi-Label Evaluation Module for OcuNet Phase 2.
 """
 
 import json
+import warnings
 from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
@@ -18,6 +19,10 @@ from sklearn.metrics import (
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
+
+
+# Suppress undefined metric warnings in sklearn for rare classes
+warnings.filterwarnings("ignore", "No positive class found in y_true, recall is set to one for all thresholds.")
 
 
 class MultiLabelMetrics:

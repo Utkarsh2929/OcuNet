@@ -212,6 +212,17 @@ class ImprovedTrainer:
         self.threshold = config['training'].get('threshold', 0.5)
         self.warmup_epochs = config['training'].get('warmup_epochs', 5)
 
+        # Gradient accumulation for larger effective batch sizes
+        self.grad_accum_steps = config['training'].get('gradient_accumulation_steps', 1)
+        effective_batch = config['training']['batch_size'] * self.grad_accum_steps
+        if self.grad_accum_steps > 1:
+            print(f"  Gradient accumulation: {self.grad_accum_steps} steps (effective batch={effective_batch})")
+
+        # Hard negative mining
+        self.use_hard_negatives = config['training'].get('hard_negative_mining', False)
+        self.hard_neg_weight = config['training'].get('hard_negative_weight', 3.0)
+        self.sample_weights_boost = None  # Updated after each epoch
+
         # Optimizer
         self.optimizer = AdamW(
             self.model.parameters(),
@@ -265,52 +276,58 @@ class ImprovedTrainer:
         self.best_epoch = 0
 
     def train_epoch(self) -> Tuple[float, Dict]:
-        """Train one epoch."""
+        """Train one epoch with gradient accumulation."""
         self.model.train()
         self.metrics.reset()
 
         running_loss = 0.0
         num_batches = 0
 
+        self.optimizer.zero_grad()
+
         pbar = tqdm(self.train_loader, desc="Training", leave=False)
-        for images, labels in pbar:
+        for batch_idx, (images, labels) in enumerate(pbar):
             images = images.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
-
-            self.optimizer.zero_grad()
 
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
                     outputs = self.model(images)
                     loss = self.criterion(outputs, labels)
+                    loss = loss / self.grad_accum_steps
 
                 self.scaler.scale(loss).backward()
-                self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
+
+                if (batch_idx + 1) % self.grad_accum_steps == 0:
+                    self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                    self.optimizer.zero_grad()
+                    self.scheduler.step()
+                    self.ema.update()
             else:
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
+                loss = loss / self.grad_accum_steps
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                self.optimizer.step()
 
-            # Step scheduler AFTER optimizer
-            self.scheduler.step()
-
-            # Update EMA
-            self.ema.update()
+                if (batch_idx + 1) % self.grad_accum_steps == 0:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    self.scheduler.step()
+                    self.ema.update()
 
             with torch.no_grad():
                 probs = torch.sigmoid(outputs)
                 self.metrics.update(probs, labels)
 
-            running_loss += loss.item()
+            running_loss += loss.item() * self.grad_accum_steps
             num_batches += 1
 
             current_lr = self.optimizer.param_groups[0]['lr']
-            pbar.set_postfix({'loss': f'{loss.item():.4f}', 'lr': f'{current_lr:.2e}'})
+            pbar.set_postfix({'loss': f'{loss.item() * self.grad_accum_steps:.4f}', 'lr': f'{current_lr:.2e}'})
 
         return running_loss / num_batches, self.metrics.compute()
 

@@ -43,7 +43,8 @@ DISEASE_INFO = {
 
 class ImprovedMultiLabelClassifier:
     """
-    Multi-label classifier with per-class optimized thresholds.
+    Multi-label classifier with per-class optimized thresholds,
+    temperature scaling, and top-K prediction constraints.
     """
 
     def __init__(
@@ -51,7 +52,10 @@ class ImprovedMultiLabelClassifier:
             checkpoint_path: str = "checkpoints/best_model.pth",
             config_path: str = "config/config.yaml",
             thresholds_path: str = "evaluation_results/optimal_thresholds.yaml",
-            device: Optional[str] = None
+            calibration_path: str = "evaluation_results/calibration.yaml",
+            device: Optional[str] = None,
+            max_predictions: int = 5,
+            min_confidence: float = 0.3
     ):
         # Load config
         with open(config_path, 'r') as f:
@@ -63,6 +67,10 @@ class ImprovedMultiLabelClassifier:
         else:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+        # Prediction constraints
+        self.max_predictions = max_predictions
+        self.min_confidence = min_confidence
+
         # Load checkpoint
         checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
 
@@ -70,19 +78,36 @@ class ImprovedMultiLabelClassifier:
         self.num_classes = len(self.class_names)
         self.default_threshold = checkpoint.get('threshold', 0.5)
 
-        # Load per-class thresholds if available
-        self.thresholds = {}
-        thresholds_file = Path(thresholds_path)
-        if thresholds_file.exists():
-            with open(thresholds_file, 'r') as f:
-                thresholds_data = yaml.safe_load(f)
-                for name, data in thresholds_data.items():
-                    self.thresholds[name] = data['threshold']
-            print(f"Loaded optimized thresholds from {thresholds_path}")
-        else:
+        # Load calibration (temperature scaling) if available
+        self.temperature = 1.0
+        cal_file = Path(calibration_path)
+        if cal_file.exists():
+            with open(cal_file, 'r') as f:
+                cal_data = yaml.safe_load(f)
+            self.temperature = cal_data.get('temperature', 1.0)
+            # Use calibrated thresholds from calibration file
+            self.thresholds = {}
+            cal_thresholds = cal_data.get('thresholds', {})
             for name in self.class_names:
-                self.thresholds[name] = self.default_threshold
-            print(f"Using default threshold: {self.default_threshold}")
+                if name in cal_thresholds:
+                    self.thresholds[name] = cal_thresholds[name]['threshold']
+                else:
+                    self.thresholds[name] = self.default_threshold
+            print(f"Loaded calibration: T={self.temperature:.4f}")
+        else:
+            # Fall back to optimal_thresholds.yaml
+            self.thresholds = {}
+            thresholds_file = Path(thresholds_path)
+            if thresholds_file.exists():
+                with open(thresholds_file, 'r') as f:
+                    thresholds_data = yaml.safe_load(f)
+                    for name, data in thresholds_data.items():
+                        self.thresholds[name] = data['threshold']
+                print(f"Loaded optimized thresholds from {thresholds_path}")
+            else:
+                for name in self.class_names:
+                    self.thresholds[name] = self.default_threshold
+                print(f"Using default threshold: {self.default_threshold}")
 
         # Create model
         self.model = create_improved_model(self.config, self.num_classes)
@@ -90,15 +115,34 @@ class ImprovedMultiLabelClassifier:
         self.model.to(self.device)
         self.model.eval()
 
-        # Transform
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+        # Transform (respects config image_size)
+        img_size = self.config.get('dataset', {}).get('image_size', 224)
+
+        # Include preprocessing if available
+        preprocess_list = []
+        try:
+            from src.preprocessing import FundusROICrop, CLAHETransform
+            preprocess_config = self.config.get('preprocessing', {})
+            if preprocess_config.get('fundus_roi_crop', False):
+                preprocess_list.append(FundusROICrop())
+            if preprocess_config.get('clahe', False):
+                preprocess_list.append(CLAHETransform(
+                    clip_limit=preprocess_config.get('clahe_clip_limit', 2.0)
+                ))
+        except ImportError:
+            pass
+
+        self.transform = transforms.Compose(preprocess_list + [
+            transforms.Resize((img_size, img_size)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
         print(f"Model loaded on {self.device}")
         print(f"  Classes: {self.num_classes}")
+        print(f"  Temperature: {self.temperature:.4f}")
+        print(f"  Max predictions: {self.max_predictions}")
+        print(f"  Min confidence: {self.min_confidence}")
 
     def predict(
             self,
@@ -122,7 +166,9 @@ class ImprovedMultiLabelClassifier:
         # Predict
         with torch.no_grad():
             logits = self.model(input_tensor)
-            probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+            # Apply temperature scaling
+            scaled_logits = logits / self.temperature
+            probs = torch.sigmoid(scaled_logits).squeeze().cpu().numpy()
 
         # Apply thresholds
         detected = []
@@ -137,7 +183,7 @@ class ImprovedMultiLabelClassifier:
             else:
                 threshold = self.default_threshold
 
-            is_detected = prob >= threshold
+            is_detected = prob >= threshold and prob >= self.min_confidence
 
             probabilities[name] = prob
 
@@ -159,12 +205,21 @@ class ImprovedMultiLabelClassifier:
         probabilities = dict(sorted(probabilities.items(), key=lambda x: x[1], reverse=True))
         detected = sorted(detected, key=lambda x: probabilities[x], reverse=True)
 
+        # Top-K constraint: keep only top max_predictions
+        if len(detected) > self.max_predictions:
+            detected = detected[:self.max_predictions]
+            # Update all_predictions to reflect the constraint
+            for name in self.class_names:
+                if name not in detected:
+                    all_predictions[name]['detected'] = False
+
         return {
             'detected_diseases': detected,
             'num_diseases': len(detected),
             'probabilities': probabilities,
             'all_predictions': all_predictions,
-            'image_path': image_path
+            'image_path': image_path,
+            'temperature': self.temperature
         }
 
     def predict_batch(

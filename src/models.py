@@ -214,6 +214,16 @@ class ImprovedMultiLabelModel(nn.Module):
             feature_dim = 768
             model.classifier = nn.Identity()
             return model, feature_dim
+        elif name == 'efficientnet_v2_s':
+            weights = models.EfficientNet_V2_S_Weights.IMAGENET1K_V1 if pretrained else None
+            model = models.efficientnet_v2_s(weights=weights)
+            feature_dim = 1280
+        elif name == 'swin_t':
+            weights = models.Swin_T_Weights.IMAGENET1K_V1 if pretrained else None
+            model = models.swin_t(weights=weights)
+            feature_dim = 768
+            model.head = nn.Identity()
+            return model, feature_dim
         else:
             raise ValueError(f"Unsupported backbone: {name}")
 
@@ -252,19 +262,58 @@ def create_improved_model(config: dict, num_classes: int) -> nn.Module:
     )
 
 
+def compute_effective_weights(pos_counts: torch.Tensor, total: int, beta: float = 0.9999) -> torch.Tensor:
+    """
+    Compute class-balanced weights using effective number of samples.
+
+    Reference: Cui et al., "Class-Balanced Loss Based on Effective Number of Samples", CVPR 2019.
+
+    Args:
+        pos_counts: Number of positive samples per class
+        total: Total number of samples
+        beta: Hyperparameter (typically 0.9, 0.99, 0.999, or 0.9999)
+
+    Returns:
+        Per-class weights tensor
+    """
+    effective_num = 1.0 - torch.pow(beta, pos_counts.float())
+    weights = (1.0 - beta) / torch.clamp(effective_num, min=1e-8)
+    # Normalize so mean weight = 1
+    weights = weights / weights.mean()
+    return weights
+
+
 def create_improved_loss(config: dict, pos_weights: torch.Tensor, device: torch.device) -> nn.Module:
-    """Create improved loss function."""
+    """
+    Create improved loss function.
+
+    Supports two config styles:
+    - New style: loss_function: "asl" | "focal" | "bce"
+    - Old style: use_asymmetric_loss: true / use_focal_loss: true (backward compat)
+    """
 
     pos_weights = pos_weights.to(device)
 
-    if config['model'].get('use_asymmetric_loss', True):
+    # Determine loss type from config (new style takes priority)
+    loss_type = config['model'].get('loss_function', None)
+
+    if loss_type is None:
+        # Backward compatibility with old boolean config
+        if config['model'].get('use_asymmetric_loss', True):
+            loss_type = 'asl'
+        elif config['model'].get('use_focal_loss', True):
+            loss_type = 'focal'
+        else:
+            loss_type = 'bce'
+
+    if loss_type == 'asl':
         return AsymmetricLossOptimized(
             gamma_neg=config['model'].get('asl_gamma_neg', 4),
             gamma_pos=config['model'].get('asl_gamma_pos', 1),
             clip=config['model'].get('asl_clip', 0.05),
             pos_weight=pos_weights
         )
-    elif config['model'].get('use_focal_loss', True):
+    elif loss_type == 'focal':
         return FocalLossMultiLabel(
             gamma=config['model'].get('focal_loss_gamma', 2.0),
             pos_weight=pos_weights

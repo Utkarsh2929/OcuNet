@@ -16,79 +16,103 @@ dataset:
   test_split: 0.15
   random_seed: 42
 
-  # IMPROVED: Higher minimum samples
+  # Minimum samples per class
   min_samples_per_class: 10
 
-  # IMPROVED: Oversampling for rare classes
-  oversample_rare_classes: true
-  oversample_threshold: 50  # Classes with <50 samples get oversampled
-  oversample_factor: 3      # Multiply rare class samples by this
+  # Oversampling (disabled — use effective class-balanced weights instead)
+  oversample_rare_classes: false
+  oversample_threshold: 50
+  oversample_factor: 3
 
-# Training Configuration - IMPROVED
+# Preprocessing (NEW - applied before augmentation)
+preprocessing:
+  fundus_roi_crop: true        # Detect and crop to fundus ROI, remove black borders
+  roi_padding: 0.02            # Extra padding around detected ROI
+
+  clahe: true                  # Illumination normalization via CLAHE
+  clahe_clip_limit: 2.0
+  clahe_channel: "green"       # "green" (best for fundus) or "lab"
+
+# Training Configuration
 training:
   batch_size: 16
-  num_epochs: 150           # More epochs
-  learning_rate: 0.00005    # Lower LR for fine-tuning
+  num_epochs: 150
+  learning_rate: 0.00005
   weight_decay: 0.0001
-  early_stopping_patience: 25  # More patience
+  early_stopping_patience: 25
   num_workers: 0
 
-  # IMPROVED: Dynamic thresholding
+  # Dynamic thresholding
   threshold: 0.5
   use_class_specific_thresholds: true
 
-  # IMPROVED: Warmup
+  # Warmup
   warmup_epochs: 5
 
-  # IMPROVED: Label smoothing
-  label_smoothing: 0.1
+  # Label smoothing — disabled for multi-label sigmoid (has no effect)
+  # label_smoothing: 0.0
 
-# Model Configuration - IMPROVED
+  # Class-balanced loss reweighting (replaces naive oversampling)
+  use_effective_weights: true
+  effective_weights_beta: 0.9999
+
+  # Gradient accumulation (for larger effective batch with 384px images)
+  gradient_accumulation_steps: 1   # Set to 2-4 if using image_size: 384
+
+  # Hard negative mining (targets low-precision problem)
+  hard_negative_mining: false
+  hard_negative_weight: 3.0
+
+# Model Configuration
 model:
-  architecture: "efficientnet_b2"  # Stronger backbone
+  # Backbone options: efficientnet_b0, efficientnet_b2, efficientnet_v2_s,
+  #                   convnext_tiny, convnext_small, swin_t
+  architecture: "efficientnet_b2"
   pretrained: true
-  dropout_rate: 0.5               # Higher dropout
+  dropout_rate: 0.5
 
-  # IMPROVED: Better loss function
-  use_asymmetric_loss: true
-  asl_gamma_neg: 4                # Focus on hard negatives
+  # Loss function: "asl", "focal", or "bce"
+  loss_function: "asl"
+  asl_gamma_neg: 4
   asl_gamma_pos: 1
   asl_clip: 0.05
-
-  # Fallback to focal loss if ASL disabled
-  use_focal_loss: true
-  focal_loss_gamma: 2.0
+  focal_loss_gamma: 2.0       # Only used if loss_function: "focal"
 
   multi_label: true
 
-# Augmentation Configuration - IMPROVED (Stronger)
+# Augmentation Configuration (toned down for medical imaging)
 augmentation:
   # Geometric
   rotation_degrees: 45
   horizontal_flip: true
-  vertical_flip: true
-  zoom_range: [0.8, 1.2]       # Wider range
-  shear_range: 15               # NEW
+  vertical_flip: false         # Disabled — unrealistic for fundus imaging
+  zoom_range: [0.8, 1.2]
+  shear_range: 15
 
-  # Color
-  brightness_range: [0.6, 1.4]  # Wider range
-  contrast_range: [0.6, 1.4]
-  saturation_range: [0.8, 1.2]  # NEW
-  hue_range: 0.1                # NEW
+  # Color (reduced extremes for medical images)
+  brightness_range: [0.7, 1.3]   # Was [0.6, 1.4]
+  contrast_range: [0.7, 1.3]     # Was [0.6, 1.4]
+  saturation_range: [0.8, 1.2]
+  hue_range: 0.05                # Was 0.1
 
   # Advanced
   random_erasing: true
   random_erasing_prob: 0.3
   random_erasing_scale: [0.02, 0.2]
 
-  # NEW: RandAugment style
+  # RandAugment
   use_randaugment: true
-  randaugment_n: 2              # Number of transforms
-  randaugment_m: 9              # Magnitude
+  randaugment_n: 2
+  randaugment_m: 7               # Was 9
 
-  # Disabled for multi-label (complex interactions)
+  # Disabled for multi-label
   mixup_alpha: 0.0
   cutmix_alpha: 0.0
+
+# Calibration (NEW)
+calibration:
+  strategy: "f1"               # "f1" or "precision_at_recall"
+  min_recall: 0.8              # For precision_at_recall strategy
 
 # Output
 output:
@@ -99,4 +123,4 @@ output:
 # Experiment
 experiment:
   name: "ocunet_phase2_improved"
-  version: "2.1.0"
+  version: "2.2.0"

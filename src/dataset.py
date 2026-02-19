@@ -19,6 +19,13 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 
+# Preprocessing transforms
+try:
+    from src.preprocessing import FundusROICrop, CLAHETransform
+    _PREPROCESSING_AVAILABLE = True
+except ImportError:
+    _PREPROCESSING_AVAILABLE = False
+
 
 class RandAugment:
     """
@@ -225,6 +232,19 @@ class ImprovedMultiLabelDataset(Dataset):
 
         return sample_weights
 
+    def get_effective_pos_weights(self, beta: float = 0.9999) -> torch.Tensor:
+        """
+        Calculate class-balanced weights using effective number of samples.
+
+        Reference: Cui et al., CVPR 2019.
+        """
+        pos_counts = self.labels.sum(axis=0)
+        pos_counts = np.maximum(pos_counts, 1)  # Avoid zero
+        effective_num = 1.0 - np.power(beta, pos_counts)
+        weights = (1.0 - beta) / np.maximum(effective_num, 1e-8)
+        weights = weights / weights.mean()  # Normalize
+        return torch.FloatTensor(weights)
+
     def get_class_distribution(self) -> Dict[str, int]:
         """Get class distribution."""
         counts = self.labels.sum(axis=0)
@@ -265,14 +285,31 @@ class ImprovedDataManager:
 
     def _find_csv_and_images(self, split: str) -> Tuple[Optional[Path], Optional[Path]]:
         """Find CSV and image directory for a split."""
+        # Map split names to actual RFMiD directory/file names
+        split_map = {
+            'train': {'dirs': ['Training_Set'], 'csv_prefix': 'RFMiD_Training_Labels', 'img_dirs': ['Training', 'train_images']},
+            'val': {'dirs': ['Evaluation_Set'], 'csv_prefix': 'RFMiD_Validation_Labels', 'img_dirs': ['Validation', 'val_images']},
+            'test': {'dirs': ['Test_Set'], 'csv_prefix': 'RFMiD_Testing_Labels', 'img_dirs': ['Test', 'test_images']},
+        }
+
+        info = split_map.get(split, {'dirs': [split], 'csv_prefix': f'RFMiD_{split}', 'img_dirs': [split]})
+
         # Try different directory structures
         possible_csv_paths = [
+            # Nested structure: data/rfmid/Training_Set/Training_Set/RFMiD_Training_Labels.csv
+            self.phase2_root / info['dirs'][0] / info['dirs'][0] / f"{info['csv_prefix']}.csv",
+            # Flat: data/rfmid/RFMiD_Training_Labels.csv
+            self.phase2_root / f"{info['csv_prefix']}.csv",
+            # Simple: data/rfmid/train.csv
             self.phase2_root / f"{split}.csv",
             self.phase2_root / f"RFMiD_{split}.csv",
             self.phase2_root / split / f"{split}.csv",
         ]
 
         possible_img_dirs = [
+            # Nested: data/rfmid/Training_Set/Training_Set/Training/
+            self.phase2_root / info['dirs'][0] / info['dirs'][0] / info['img_dirs'][0],
+            # Flat alternatives
             self.phase2_root / f"{split}_images",
             self.phase2_root / f"RFMiD_{split}_images",
             self.phase2_root / split / "images",
@@ -408,12 +445,28 @@ class ImprovedDataManager:
             print(f"  {i}: {d}")
 
     def get_transforms(self, mode: str = "train") -> transforms.Compose:
-        """Get improved transforms."""
+        """Get improved transforms with optional preprocessing."""
+
+        # Preprocessing transforms (applied before augmentation)
+        preprocess_config = self.config.get('preprocessing', {})
+        preprocess_list = []
+
+        if _PREPROCESSING_AVAILABLE:
+            if preprocess_config.get('fundus_roi_crop', False):
+                preprocess_list.append(FundusROICrop(
+                    padding_ratio=preprocess_config.get('roi_padding', 0.02)
+                ))
+
+            if preprocess_config.get('clahe', False):
+                preprocess_list.append(CLAHETransform(
+                    clip_limit=preprocess_config.get('clahe_clip_limit', 2.0),
+                    channel=preprocess_config.get('clahe_channel', 'green')
+                ))
 
         if mode == "train":
             aug_config = self.config.get('augmentation', {})
 
-            transform_list = [
+            transform_list = preprocess_list + [
                 transforms.Resize((self.image_size, self.image_size)),
             ]
 
@@ -440,9 +493,9 @@ class ImprovedDataManager:
             hue = aug_config.get('hue_range', 0.1)
 
             transform_list.append(transforms.ColorJitter(
-                brightness=(brightness[0] - 1, brightness[1] - 1) if isinstance(brightness, list) else brightness,
-                contrast=(contrast[0] - 1, contrast[1] - 1) if isinstance(contrast, list) else contrast,
-                saturation=(saturation[0] - 1, saturation[1] - 1) if isinstance(saturation, list) else saturation,
+                brightness=tuple(brightness) if isinstance(brightness, list) else brightness,
+                contrast=tuple(contrast) if isinstance(contrast, list) else contrast,
+                saturation=tuple(saturation) if isinstance(saturation, list) else saturation,
                 hue=hue
             ))
 
@@ -471,7 +524,7 @@ class ImprovedDataManager:
             return transforms.Compose(transform_list)
 
         else:
-            return transforms.Compose([
+            return transforms.Compose(preprocess_list + [
                 transforms.Resize((self.image_size, self.image_size)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])

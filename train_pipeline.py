@@ -14,6 +14,7 @@ from src.dataset import ImprovedDataManager
 from src.models import create_improved_model, create_improved_loss, count_parameters
 from src.train import ImprovedTrainer
 from src.evaluate import MultiLabelEvaluator, plot_multilabel_training_history
+from src.calibrate import calibrate_model as run_calibration
 
 
 def set_seed(seed: int = 42):
@@ -229,6 +230,51 @@ def optimize_thresholds(config: dict, checkpoint_path: str = None):
     return optimal_thresholds
 
 
+def calibrate(config: dict, checkpoint_path: str = None):
+    """Calibrate model with temperature scaling and re-optimize thresholds."""
+    print("\n" + "=" * 70)
+    print("TEMPERATURE SCALING CALIBRATION")
+    print("=" * 70)
+
+    device = get_device()
+
+    # Load model
+    ckpt_path = checkpoint_path or Path(config['output']['checkpoint_dir']) / 'best_model.pth'
+    checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
+
+    class_names = checkpoint.get('class_names', [])
+    num_classes = len(class_names)
+
+    model = create_improved_model(config, num_classes)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.to(device)
+    model.eval()
+
+    print(f"Loaded: {ckpt_path}")
+    print(f"  Classes: {num_classes}")
+
+    # Load validation data
+    data_manager = ImprovedDataManager(config)
+    _, val_loader, _, _, _ = data_manager.create_data_loaders()
+
+    # Run calibration
+    strategy = config.get('calibration', {}).get('strategy', 'f1')
+    min_recall = config.get('calibration', {}).get('min_recall', 0.8)
+
+    temperature, thresholds = run_calibration(
+        model=model,
+        val_loader=val_loader,
+        class_names=class_names,
+        device=device,
+        output_dir=config['output']['results_dir'],
+        strategy=strategy,
+        min_recall=min_recall
+    )
+
+    print(f"\nTemperature: {temperature:.4f}")
+    return temperature, thresholds
+
+
 def compare_models(config: dict):
     """Compare original vs improved model."""
     print("\n" + "=" * 70)
@@ -277,7 +323,7 @@ def main():
     parser = argparse.ArgumentParser(description='OcuNet Phase 2 - Improved Training')
     parser.add_argument('--config', type=str, default='config/config.yaml')
     parser.add_argument('--mode', type=str, default='all',
-                        choices=['train', 'evaluate', 'optimize', 'compare', 'all'])
+                        choices=['train', 'evaluate', 'optimize', 'calibrate', 'compare', 'all'])
     parser.add_argument('--checkpoint', type=str, default=None)
     args = parser.parse_args()
 
@@ -290,7 +336,8 @@ def main():
     print(f"Config: {args.config}")
     print(f"Model: {config['model']['architecture']}")
     print(f"Oversampling: {config['dataset'].get('oversample_rare_classes', False)}")
-    print(f"Loss: {'ASL' if config['model'].get('use_asymmetric_loss') else 'Focal'}")
+    loss_type = config['model'].get('loss_function', 'asl' if config['model'].get('use_asymmetric_loss') else 'focal')
+    print(f"Loss: {loss_type.upper()}")
     print("=" * 70)
 
     model, test_loader, class_names = None, None, None
@@ -303,6 +350,9 @@ def main():
 
     if args.mode in ['optimize', 'all']:
         optimize_thresholds(config, args.checkpoint)
+
+    if args.mode in ['calibrate', 'all']:
+        calibrate(config, args.checkpoint)
 
     if args.mode in ['compare']:
         compare_models(config)

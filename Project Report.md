@@ -33,7 +33,7 @@
 - **Phase 1**: Single-label classification into 4 categories (Cataract, Diabetic Retinopathy, Glaucoma, Normal)
 - **Phase 2**: Multi-label classification detecting 28 different retinal conditions simultaneously
 
-The system leverages transfer learning with EfficientNet architectures pretrained on ImageNet, combined with advanced loss functions to handle class imbalance.
+The system leverages transfer learning with EfficientNet architectures pretrained on ImageNet, combined with advanced loss functions, probability calibration, and intelligent preprocessing to handle class imbalance and maximize precision.
 
 ### Phase 1 Key Achievements
 
@@ -552,13 +552,19 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 
 **Key Techniques:**
 - **Asymmetric Loss (ASL)**: Handles extreme class imbalance (γ_neg=4, γ_pos=1, clip=0.05)
-- **Oversampling**: 14 rare classes (<50 samples) oversampled 3x
-- **RandAugment**: Strong data augmentation (N=2, M=9)
+- **Class-Balanced Effective Weights**: Replaces naive oversampling with effective sample-based reweighting (β=0.9999)
+- **Fundus ROI Preprocessing**: Automatic detection and cropping of circular fundus region to remove black borders
+- **CLAHE Illumination Normalization**: Contrast-Limited Adaptive Histogram Equalization on green channel
+- **Temperature Scaling Calibration**: Post-training probability calibration for better-calibrated confidence scores
+- **Top-K Prediction Constraint**: Limits maximum predictions (default 5) with minimum confidence floor (0.3)
+- **RandAugment**: Data augmentation (N=2, M=7) — toned down from M=9 for medical imaging
 - **Learning Rate Warmup**: 5 epochs linear warmup to 5e-4
 - **EMA (Exponential Moving Average)**: Decay=0.999 for stable evaluation
-- **Label Smoothing**: 0.1 for regularization
+- **Gradient Accumulation**: Supports larger effective batch sizes for high-resolution (384px) training
 - **Random Erasing**: 30% probability for occlusion robustness
-- **Stronger Augmentation**: ±45° rotation, vertical flip, shear=15°, wider color jitter
+- **Augmentation**: ±45° rotation, horizontal flip, shear=15°, color jitter (toned down for medical images)
+
+**Backbone Options (v2.2.0):** EfficientNet-B2 (default), EfficientNet-V2-S, Swin Transformer (Tiny), ConvNeXt Tiny
 
 ### 4.3 Model Architecture
 
@@ -628,7 +634,10 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 | Mixed Precision | FP16 |
 | LR Schedule | Cosine Annealing after warmup |
 | EMA Decay | 0.999 |
-| Label Smoothing | 0.1 |
+| Loss Function | ASL (configurable: ASL/Focal/BCE) |
+| Class Weighting | Effective sample-based (β=0.9999) |
+| Preprocessing | Fundus ROI Crop + CLAHE |
+| Gradient Accumulation | Configurable (default 1) |
 
 ### 4.5 Training Progress
 
@@ -806,17 +815,22 @@ OcuNet/
 │   └── rfmid/                   # Phase 2 RFMiD dataset (28 classes)
 ├── src/
 │   ├── __init__.py              # Package exports
-│   ├── dataset.py               # Data loading, augmentation, oversampling
-│   ├── models.py                # EfficientNet-B2 model, ASL loss, SE blocks
-│   ├── train.py                 # Training loop with EMA, warmup, cosine LR
+│   ├── dataset.py               # Data loading, augmentation, class-balanced weights
+│   ├── models.py                # Multi-backbone support, ASL/Focal/BCE loss, SE blocks
+│   ├── train.py                 # Training loop with EMA, warmup, gradient accumulation
 │   ├── evaluate.py              # Evaluation metrics, plots, reports
+│   ├── calibrate.py             # Temperature scaling calibration & threshold optimization
+│   ├── preprocessing.py         # Fundus ROI crop, CLAHE illumination normalization
 │   └── utils.py                 # Utility functions
+├── tests/
+│   └── test_improvements.py     # 22 automated tests for all modules
 ├── checkpoints/                 # Saved model weights (not in git)
 │   ├── best_model.pth           # Best trained model (~116 MB)
 │   └── latest_checkpoint.pth    # Latest checkpoint
 ├── evaluation_results/          # Metrics, plots, reports (not in git)
+│   └── calibration.yaml         # Temperature scaling + calibrated thresholds
 ├── train_pipeline.py            # Main training entry point
-├── predict.py                   # Multi-label prediction interface
+├── predict.py                   # Multi-label prediction with calibration & top-K
 ├── setup_datasets.py            # Dataset setup & verification
 ├── requirements.txt             # Dependencies
 ├── Project Report.md            # This document
@@ -854,13 +868,14 @@ python setup_datasets.py verify
 ### 5.4 Training
 
 ```bash
-# Full pipeline (train + evaluate + optimize thresholds)
+# Full pipeline (train + evaluate + optimize + calibrate)
 python train_pipeline.py --mode all
 
 # Individual modes
 python train_pipeline.py --mode train      # Training only
 python train_pipeline.py --mode evaluate   # Evaluation only
 python train_pipeline.py --mode optimize   # Threshold optimization only
+python train_pipeline.py --mode calibrate  # Temperature scaling calibration only
 
 # Custom config
 python train_pipeline.py --config path/to/config.yaml --mode all
@@ -873,14 +888,18 @@ python train_pipeline.py --config path/to/config.yaml --mode all
 ```python
 from predict import ImprovedMultiLabelClassifier
 
-# Initialize classifier (loads model automatically)
-classifier = ImprovedMultiLabelClassifier()
+# Initialize classifier with calibration and top-K constraints
+classifier = ImprovedMultiLabelClassifier(
+    max_predictions=5,    # Limit false positives
+    min_confidence=0.3    # Minimum confidence floor
+)
 
-# Single image prediction
+# Single image prediction (with temperature scaling + calibrated thresholds)
 result = classifier.predict("path/to/retinal_image.jpg")
 
-print(result['diseases'])          # ['DR', 'ARMD']
-print(result['probabilities'])     # {'DR': 0.85, 'ARMD': 0.72, ...}
+print(result['detected_diseases'])  # ['DR', 'ARMD']
+print(result['probabilities'])      # {'DR': 0.85, 'ARMD': 0.72, ...}
+print(result['temperature'])        # 1.2345 (calibration temperature)
 
 # Generate a detailed medical report
 classifier.generate_report(result, output_path="report.txt")
@@ -941,22 +960,32 @@ OcuNet is suitable for:
 
 ---
 
-## 7. Future Work
+
+### 7.0 Recently Completed (v2.2.0)
+
+The following items from previous Future Work have been implemented:
+
+- ✅ **Confidence calibration**: Temperature scaling for probability calibration
+- ✅ **Hard negative mining**: Configuration and hooks for upweighting difficult samples
+- ✅ **Class-balanced loss**: Effective sample-based reweighting (replaces naive oversampling)
+- ✅ **Fundus preprocessing**: ROI crop + CLAHE illumination normalization
+- ✅ **Stronger backbones**: EfficientNetV2-S, Swin-T options alongside EfficientNet-B2
+- ✅ **Top-K prediction constraint**: Limits false positives with min confidence floor
 
 ### 7.1 Short-term Improvements
 
 1. **Increase rare class performance**
    - Collect additional samples for classes with <10 test samples
-   - Implement harder negative mining
+   - Enable hard negative mining in training (config hooks ready)
    - Explore synthetic data generation (e.g., diffusion models)
 
 2. **Multi-severity classification**
    - DR severity grading (mild/moderate/severe/proliferative)
    - Glaucoma staging
 
-3. **Uncertainty quantification**
-   - Monte Carlo dropout
-   - Confidence calibration
+3. **Advanced calibration**
+   - Evaluate precision-at-recall threshold strategy for clinical deployment
+   - Ensemble of calibrated models
 
 ### 7.2 Long-term Enhancements
 
@@ -996,7 +1025,7 @@ OcuNet is suitable for:
 
 ## 9. Appendix
 
-### A. Complete Configuration (Phase 2)
+### A. Complete Configuration (Phase 2 — v2.2.0)
 
 ```yaml
 # config/config.yaml
@@ -1013,9 +1042,14 @@ dataset:
   test_split: 0.15
   random_seed: 42
   min_samples_per_class: 10
-  oversample_rare_classes: true
-  oversample_threshold: 50
-  oversample_factor: 3
+  oversample_rare_classes: false        # Replaced by effective weights
+
+# Preprocessing (NEW in v2.2.0)
+preprocessing:
+  fundus_roi_crop: true                 # Detect & crop fundus ROI
+  clahe: true                           # CLAHE illumination normalization
+  clahe_clip_limit: 2.0
+  clahe_channel: "green"
 
 # Training Configuration
 training:
@@ -1028,36 +1062,43 @@ training:
   threshold: 0.5
   use_class_specific_thresholds: true
   warmup_epochs: 5
-  label_smoothing: 0.1
+  use_effective_weights: true            # Class-balanced loss (NEW)
+  effective_weights_beta: 0.9999
+  gradient_accumulation_steps: 1         # Set 2-4 for 384px images (NEW)
+  hard_negative_mining: false            # Upweight hard samples (NEW)
 
 # Model Configuration
 model:
-  architecture: "efficientnet_b2"
+  architecture: "efficientnet_b2"        # Also: efficientnet_v2_s, swin_t
   pretrained: true
   dropout_rate: 0.5
-  use_asymmetric_loss: true
+  loss_function: "asl"                   # Options: asl, focal, bce (NEW)
   asl_gamma_neg: 4
   asl_gamma_pos: 1
   asl_clip: 0.05
   multi_label: true
 
-# Augmentation Configuration
+# Augmentation Configuration (toned down for medical imaging)
 augmentation:
   rotation_degrees: 45
   horizontal_flip: true
-  vertical_flip: true
+  vertical_flip: false                   # Disabled — unrealistic for fundus
   zoom_range: [0.8, 1.2]
   shear_range: 15
-  brightness_range: [0.6, 1.4]
-  contrast_range: [0.6, 1.4]
+  brightness_range: [0.7, 1.3]           # Reduced from [0.6, 1.4]
+  contrast_range: [0.7, 1.3]
   saturation_range: [0.8, 1.2]
-  hue_range: 0.1
+  hue_range: 0.05                        # Reduced from 0.1
   random_erasing: true
   random_erasing_prob: 0.3
-  random_erasing_scale: [0.02, 0.2]
   use_randaugment: true
   randaugment_n: 2
-  randaugment_m: 9
+  randaugment_m: 7                       # Reduced from 9
+
+# Calibration (NEW in v2.2.0)
+calibration:
+  strategy: "f1"                         # Also: precision_at_recall
+  min_recall: 0.8
 
 # Output
 output:
@@ -1068,7 +1109,7 @@ output:
 # Experiment
 experiment:
   name: "ocunet_phase2_improved"
-  version: "2.1.0"
+  version: "2.2.0"
 ```
 
 ### B. Dependencies
@@ -1134,7 +1175,7 @@ PyYAML>=6.0
 | Property | Value |
 |----------|-------|
 | Project Name | OcuNet |
-| Version | 2.1.0 |
+| Version | 2.2.0 |
 | Last Updated | February 2026 |
 | Author | Utkarsh Gautam |
 | License | MIT |
