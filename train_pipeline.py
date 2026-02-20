@@ -88,6 +88,16 @@ def train(config: dict):
     # Plot history
     plot_multilabel_training_history(history, config['output']['results_dir'])
 
+    # Save model as ocunetv4.pth
+    import shutil
+    models_dir = Path('models')
+    models_dir.mkdir(parents=True, exist_ok=True)
+    best_ckpt = Path(config['output']['checkpoint_dir']) / 'best_model.pth'
+    target_path = models_dir / 'ocunetv4.pth'
+    if best_ckpt.exists():
+        shutil.copy2(str(best_ckpt), str(target_path))
+        print(f"\nSaved model: {target_path}")
+
     return model, test_loader, class_names
 
 

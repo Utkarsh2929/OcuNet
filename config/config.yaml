@@ -1,16 +1,16 @@
 # ===========================================
-# OCUNET PHASE 2 - IMPROVED CONFIGURATION
+# OCUNET V4 - IMPROVED CONFIGURATION
 # ===========================================
 
 # Dataset Configuration
 dataset:
-  phase1_root: "data/dataset"
+  phase1_root: "data/dataset_4classes"
   use_phase1: true
 
   phase2_root: "data/rfmid"
   use_phase2: true
 
-  image_size: 224
+  image_size: 384
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
@@ -35,11 +35,11 @@ preprocessing:
 
 # Training Configuration
 training:
-  batch_size: 16
-  num_epochs: 150
-  learning_rate: 0.00005
+  batch_size: 8
+  num_epochs: 200
+  learning_rate: 0.0001
   weight_decay: 0.0001
-  early_stopping_patience: 25
+  early_stopping_patience: 30
   num_workers: 0
 
   # Dynamic thresholding
@@ -57,7 +57,7 @@ training:
   effective_weights_beta: 0.9999
 
   # Gradient accumulation (for larger effective batch with 384px images)
-  gradient_accumulation_steps: 1   # Set to 2-4 if using image_size: 384
+  gradient_accumulation_steps: 2   # Effective batch size = 8 * 2 = 16
 
   # Hard negative mining (targets low-precision problem)
   hard_negative_mining: false
@@ -65,17 +65,17 @@ training:
 
 # Model Configuration
 model:
-  # Backbone options: efficientnet_b0, efficientnet_b2, efficientnet_v2_s,
-  #                   convnext_tiny, convnext_small, swin_t
-  architecture: "efficientnet_b2"
+  # Backbone options: efficientnet_b0, efficientnet_b2, efficientnet_b3,
+  #                   efficientnet_v2_s, convnext_tiny, convnext_small, swin_t
+  architecture: "efficientnet_b3"
   pretrained: true
-  dropout_rate: 0.5
+  dropout_rate: 0.4
 
   # Loss function: "asl", "focal", or "bce"
   loss_function: "asl"
-  asl_gamma_neg: 4
+  asl_gamma_neg: 6
   asl_gamma_pos: 1
-  asl_clip: 0.05
+  asl_clip: 0.1
   focal_loss_gamma: 2.0       # Only used if loss_function: "focal"
 
   multi_label: true
@@ -122,5 +122,5 @@ output:
 
 # Experiment
 experiment:
-  name: "ocunet_phase2_improved"
-  version: "2.2.0"
+  name: "ocunet_v4"
+  version: "4.0.0"

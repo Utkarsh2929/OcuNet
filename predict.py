@@ -28,17 +28,22 @@ DISEASE_INFO = {
     'CSR': ('Central Serous Retinopathy', 'Fluid under central retina'),
     'ODC': ('Optic Disc Cupping', 'Glaucoma indicator'),
     'CRVO': ('Central Retinal Vein Occlusion', 'Blocked central retinal vein'),
-    'TV': ('Tortuous Vessels', 'Abnormally twisted blood vessels'),
     'AH': ('Asteroid Hyalosis', 'Calcium deposits in vitreous'),
     'ODP': ('Optic Disc Pallor', 'Pale optic disc'),
     'ODE': ('Optic Disc Edema', 'Swollen optic disc'),
+    'AION': ('Anterior Ischemic Optic Neuropathy', 'Sudden optic nerve blood supply loss'),
+    'PT': ('Phthisis', 'Shrunken non-functional eye'),
+    'RT': ('Retinitis', 'Retinal inflammation'),
     'RS': ('Retinal Scars', 'Scarred retinal tissue'),
     'CRS': ('Chorioretinal Scars', 'Deep scars in retina'),
+    'EDN': ('Exudative Diabetic Neuropathy', 'Fluid leakage from diabetic nerve damage'),
     'RPEC': ('RPE Changes', 'Retinal pigment epithelium changes'),
+    'MHL': ('Macular Hole Lamellar', 'Partial-thickness macular defect'),
     'CATARACT': ('Cataract', 'Clouding of the eye lens'),
     'GLAUCOMA': ('Glaucoma', 'Optic nerve damage'),
     'NORMAL': ('Normal', 'No significant pathology detected'),
 }
+
 
 
 class ImprovedMultiLabelClassifier:
@@ -49,7 +54,7 @@ class ImprovedMultiLabelClassifier:
 
     def __init__(
             self,
-            checkpoint_path: str = "checkpoints/best_model.pth",
+            checkpoint_path: str = "models/ocunetv4.pth",
             config_path: str = "config/config.yaml",
             thresholds_path: str = "evaluation_results/optimal_thresholds.yaml",
             calibration_path: str = "evaluation_results/calibration.yaml",
