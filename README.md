@@ -1,6 +1,6 @@
 ﻿# OcuNet 🔬
 
-A deep learning system for automated multi-label classification of retinal fundus images, detecting **28 eye disease classes** simultaneously using EfficientNet-B2 with transfer learning.
+A deep learning system for automated multi-label classification of retinal fundus images, detecting **28 eye disease classes** simultaneously using EfficientNet-B3 with transfer learning.
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
@@ -69,6 +69,8 @@ data/rfmid/
 └── RFMiD_*.csv
 ```
 
+**Phase 3 Dataset (Augmented Dataset):** Place the supplementary augmented dataset for underrepresented diseases in `data/Augmented Dataset/`.
+
 Use `setup_datasets.py` to verify dataset setup:
 ```bash
 python setup_datasets.py verify
@@ -120,11 +122,12 @@ OcuNet/
 │   └── config.yaml              # Training & model configuration
 ├── data/
 │   ├── dataset/                 # Phase 1 dataset (4 classes)
-│   └── rfmid/                   # Phase 2 RFMiD dataset (28 classes)
+│   ├── rfmid/                   # Phase 2 RFMiD dataset (28 classes)
+│   └── Augmented Dataset/       # Phase 3 Augmented dataset
 ├── src/
 │   ├── __init__.py              # Package exports
 │   ├── dataset.py               # Data loading, augmentation, oversampling
-│   ├── models.py                # EfficientNet-B2 model architecture
+│   ├── models.py                # EfficientNet-B3 model architecture
 │   ├── train.py                 # Training loop with EMA, warmup, cosine LR
 │   ├── evaluate.py              # Evaluation metrics, plots, reports
 │   └── utils.py                 # Utility functions
@@ -144,12 +147,12 @@ OcuNet/
 
 | Property | Value |
 |----------|-------|
-| Architecture | EfficientNet-B2 + Improved Classification Head |
-| Parameters | 10.06M trainable |
-| Input Size | 224 × 224 × 3 |
+| Architecture | EfficientNet-B3 + Improved Classification Head |
+| Parameters | ~12M trainable |
+| Input Size | 384 × 384 × 3 |
 | Output Classes | 28 |
 | Loss Function | Asymmetric Loss (ASL) |
-| Features | EMA, Warmup, RandAugment, Oversampling |
+| Features | EMA, Warmup, RandAugment, Torch Compile |
 
 ---
 
@@ -199,14 +202,14 @@ OcuNet/
 
 | Parameter | Value |
 |-----------|-------|
-| Batch Size | 16 |
-| Max Epochs | 150 |
-| Learning Rate | 5e-5 with warmup |
+| Batch Size | 16 (Gradient Accumulation = 1) |
+| Max Epochs | 200 |
+| Learning Rate | 3e-4 with warmup |
 | Optimizer | AdamW |
 | Weight Decay | 1e-4 |
-| Early Stopping | 25 epochs |
+| Early Stopping | 30 epochs |
 | Mixed Precision | ✅ FP16 |
-| Label Smoothing | 0.1 |
+| Compilation | ✅ `torch.compile` |
 
 ---
 

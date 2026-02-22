@@ -513,7 +513,11 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
    - Source: Kaggle Eye Diseases Classification
    - Images: 4,217 images mapped to Phase 2 categories
 
-**Combined Dataset:** 7,417 total images (Train: 4,871 | Val: 1,273 | Test: 1,273)
+3. **Phase 3 Dataset (Augmented Dataset)**
+   - Source: Custom Augmented Dataset for underrepresented classes
+   - Purpose: Enhance performance on rare conditions via expanded training distribution
+
+**Combined Dataset:** Over 7,417 total images (Train: 70% | Val: 15% | Test: 15%)
 
 **28 Disease Classes:**
 
@@ -551,7 +555,7 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 ### 4.2 Methodology
 
 **Key Techniques:**
-- **Asymmetric Loss (ASL)**: Handles extreme class imbalance (γ_neg=4, γ_pos=1, clip=0.05)
+- **Asymmetric Loss (ASL)**: Handles extreme class imbalance (γ_neg=6, γ_pos=1, clip=0.1)
 - **Class-Balanced Effective Weights**: Replaces naive oversampling with effective sample-based reweighting (β=0.9999)
 - **Fundus ROI Preprocessing**: Automatic detection and cropping of circular fundus region to remove black borders
 - **CLAHE Illumination Normalization**: Contrast-Limited Adaptive Histogram Equalization on green channel
@@ -563,23 +567,24 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 - **Gradient Accumulation**: Supports larger effective batch sizes for high-resolution (384px) training
 - **Random Erasing**: 30% probability for occlusion robustness
 - **Augmentation**: ±45° rotation, horizontal flip, shear=15°, color jitter (toned down for medical images)
+- **PyTorch Compilation**: Enabled `torch.compile` for faster GPU execution during training
 
-**Backbone Options (v2.2.0):** EfficientNet-B2 (default), EfficientNet-V2-S, Swin Transformer (Tiny), ConvNeXt Tiny
+**Backbone Options (v4.2.0):** EfficientNet-B3 (default), EfficientNet-B2, EfficientNet-V2-S, Swin Transformer (Tiny), ConvNeXt Tiny
 
 ### 4.3 Model Architecture
 
-**EfficientNet-B2 + Improved Multi-Label Head**
+**EfficientNet-B3 + Improved Multi-Label Head**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              OcuNet Phase 2 Architecture                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  Input: RGB Image (3 × 224 × 224)                           │
+│  Input: RGB Image (3 × 384 × 384)                           │
 │                         │                                    │
 │                         ▼                                    │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              EfficientNet-B2 Backbone                │    │
+│  │              EfficientNet-B3 Backbone                │    │
 │  │              (Pretrained on ImageNet)                │    │
 │  │                                                      │    │
 │  │  • Compound scaled (depth, width, resolution)       │    │
@@ -588,18 +593,18 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 │  └─────────────────────────────────────────────────────┘    │
 │                         │                                    │
 │                         ▼                                    │
-│               Feature Vector (1408)                          │
+│               Feature Vector (1536)                          │
 │                         │                                    │
 │                         ▼                                    │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │         Improved Classification Head                 │    │
 │  │                                                      │    │
 │  │  • Squeeze-and-Excitation Block (SE)                │    │
-│  │  • Dropout (p=0.5)                                  │    │
-│  │  • Linear: 1408 → 512 + BatchNorm + GELU            │    │
-│  │  • Dropout (p=0.25)                                 │    │
+│  │  • Dropout (p=0.4)                                  │    │
+│  │  • Linear: 1536 → 512 + BatchNorm + GELU            │    │
+│  │  • Dropout (p=0.4)                                 │    │
 │  │  • Linear: 512 → 256 + BatchNorm + GELU             │    │
-│  │  • Dropout (p=0.2)                                  │    │
+│  │  • Dropout (p=0.4)                                  │    │
 │  │  • Linear: 256 → 28                                 │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                         │                                    │
@@ -612,10 +617,10 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 
 | Property | Value |
 |----------|-------|
-| Architecture | EfficientNet-B2 + Improved Classification Head |
-| Total Parameters | 10,060,022 |
-| Trainable Parameters | 10,060,022 |
-| Input Size | 224 × 224 × 3 |
+| Architecture | EfficientNet-B3 + Improved Classification Head |
+| Total Parameters | ~12M |
+| Trainable Parameters | ~12M |
+| Input Size | 384 × 384 × 3 |
 | Output Classes | 28 (independent sigmoids) |
 | Loss Function | Asymmetric Loss (ASL) |
 | Classification Head | SE Block + 3-layer MLP with BatchNorm + GELU |
@@ -1032,72 +1037,76 @@ The following items from previous Future Work have been implemented:
 
 # Dataset Configuration
 dataset:
-  phase1_root: "data/dataset"
+  phase1_root: "data/dataset_4classes"
   use_phase1: true
   phase2_root: "data/rfmid"
   use_phase2: true
-  image_size: 224
+  phase3_root: "data/Augmented Dataset"
+  use_phase3: true
+  image_size: 384
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
   random_seed: 42
   min_samples_per_class: 10
-  oversample_rare_classes: false        # Replaced by effective weights
+  oversample_rare_classes: false
 
-# Preprocessing (NEW in v2.2.0)
+# Preprocessing
 preprocessing:
-  fundus_roi_crop: true                 # Detect & crop fundus ROI
-  clahe: true                           # CLAHE illumination normalization
+  fundus_roi_crop: true
+  roi_padding: 0.05
+  clahe: true
   clahe_clip_limit: 2.0
   clahe_channel: "green"
 
 # Training Configuration
 training:
   batch_size: 16
-  num_epochs: 150
-  learning_rate: 0.00005
+  num_epochs: 200
+  learning_rate: 0.0003
   weight_decay: 0.0001
-  early_stopping_patience: 25
-  num_workers: 0
+  early_stopping_patience: 30
+  num_workers: 8
   threshold: 0.5
   use_class_specific_thresholds: true
   warmup_epochs: 5
-  use_effective_weights: true            # Class-balanced loss (NEW)
+  use_effective_weights: true
   effective_weights_beta: 0.9999
-  gradient_accumulation_steps: 1         # Set 2-4 for 384px images (NEW)
-  hard_negative_mining: false            # Upweight hard samples (NEW)
+  gradient_accumulation_steps: 1
+  hard_negative_mining: false
 
 # Model Configuration
 model:
-  architecture: "efficientnet_b2"        # Also: efficientnet_v2_s, swin_t
+  architecture: "efficientnet_b3"
   pretrained: true
-  dropout_rate: 0.5
-  loss_function: "asl"                   # Options: asl, focal, bce (NEW)
-  asl_gamma_neg: 4
+  dropout_rate: 0.4
+  loss_function: "asl"
+  asl_gamma_neg: 6
   asl_gamma_pos: 1
-  asl_clip: 0.05
+  asl_clip: 0.1
   multi_label: true
 
-# Augmentation Configuration (toned down for medical imaging)
+# Augmentation Configuration
 augmentation:
   rotation_degrees: 45
   horizontal_flip: true
-  vertical_flip: false                   # Disabled — unrealistic for fundus
+  vertical_flip: false
   zoom_range: [0.8, 1.2]
   shear_range: 15
-  brightness_range: [0.7, 1.3]           # Reduced from [0.6, 1.4]
+  brightness_range: [0.7, 1.3]
   contrast_range: [0.7, 1.3]
   saturation_range: [0.8, 1.2]
-  hue_range: 0.05                        # Reduced from 0.1
+  hue_range: 0.05
   random_erasing: true
   random_erasing_prob: 0.3
+  random_erasing_scale: [0.02, 0.2]
   use_randaugment: true
   randaugment_n: 2
-  randaugment_m: 7                       # Reduced from 9
+  randaugment_m: 7
 
-# Calibration (NEW in v2.2.0)
+# Calibration
 calibration:
-  strategy: "f1"                         # Also: precision_at_recall
+  strategy: "f1"
   min_recall: 0.8
 
 # Output
@@ -1108,8 +1117,8 @@ output:
 
 # Experiment
 experiment:
-  name: "ocunet_phase2_improved"
-  version: "2.2.0"
+  name: "ocunet_v4"
+  version: "4.2.0"
 ```
 
 ### B. Dependencies

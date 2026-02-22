@@ -24,7 +24,7 @@ class AsymmetricLossOptimized(nn.Module):
             gamma_neg: float = 4,
             gamma_pos: float = 1,
             clip: float = 0.05,
-            eps: float = 1e-8,
+            eps: float = 1e-5,
             pos_weight: Optional[torch.Tensor] = None
     ):
         super().__init__()

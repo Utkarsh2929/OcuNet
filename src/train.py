@@ -409,7 +409,7 @@ class ImprovedTrainer:
         print(f"Warmup: {self.warmup_epochs} epochs")
         print(f"Classes: {len(self.class_names)}")
         print(f"Batches/epoch: {len(self.train_loader)}")
-        print(f"Learning Rate: {self.learning_rate} -> {self.learning_rate * 10:.6f} (peak)")
+        print(f"Learning Rate: {self.scheduler.min_lr:.2e} -> {self.learning_rate:.6f} (peak)")
         print(f"EMA: Enabled (decay=0.999)")
         print("=" * 70)
 

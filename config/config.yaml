@@ -10,6 +10,9 @@ dataset:
   phase2_root: "data/rfmid"
   use_phase2: true
 
+  phase3_root: "data/Augmented Dataset"
+  use_phase3: true
+
   image_size: 384
   train_split: 0.7
   val_split: 0.15
@@ -27,7 +30,7 @@ dataset:
 # Preprocessing (NEW - applied before augmentation)
 preprocessing:
   fundus_roi_crop: true        # Detect and crop to fundus ROI, remove black borders
-  roi_padding: 0.02            # Extra padding around detected ROI
+  roi_padding: 0.05            # Extra padding around detected ROI
 
   clahe: true                  # Illumination normalization via CLAHE
   clahe_clip_limit: 2.0
@@ -35,12 +38,12 @@ preprocessing:
 
 # Training Configuration
 training:
-  batch_size: 8
+  batch_size: 16
   num_epochs: 200
-  learning_rate: 0.0001
+  learning_rate: 0.0003
   weight_decay: 0.0001
   early_stopping_patience: 30
-  num_workers: 0
+  num_workers: 8
 
   # Dynamic thresholding
   threshold: 0.5
@@ -57,7 +60,7 @@ training:
   effective_weights_beta: 0.9999
 
   # Gradient accumulation (for larger effective batch with 384px images)
-  gradient_accumulation_steps: 2   # Effective batch size = 8 * 2 = 16
+  gradient_accumulation_steps: 1   # Effective batch size = 16 * 1 = 16
 
   # Hard negative mining (targets low-precision problem)
   hard_negative_mining: false
@@ -123,4 +126,4 @@ output:
 # Experiment
 experiment:
   name: "ocunet_v4"
-  version: "4.0.0"
+  version: "4.2.0"

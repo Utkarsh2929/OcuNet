@@ -45,7 +45,7 @@ def get_device() -> torch.device:
     return device
 
 
-def train(config: dict):
+def train(config: dict, resume_checkpoint: str = None):
     """Train improved model."""
     print("\n" + "=" * 70)
     print("OCUNET PHASE 2 - IMPROVED TRAINING")
@@ -65,6 +65,25 @@ def train(config: dict):
     # Create model
     print("\nCreating improved model...")
     model = create_improved_model(config, num_classes)
+
+    if resume_checkpoint:
+        print(f"Resuming/fine-tuning from checkpoint: {resume_checkpoint}")
+        ckpt = torch.load(resume_checkpoint, map_location=device, weights_only=False)
+        pretrained_dict = ckpt['model_state_dict']
+        model_dict = model.state_dict()
+
+        # Filter out unnecessary keys (e.g. classification head if num_classes changed)
+        filtered_dict = {k: v for k, v in pretrained_dict.items()
+                         if k in model_dict and v.shape == model_dict[k].shape}
+        
+        ignored_keys = [k for k in pretrained_dict.keys() if k not in filtered_dict]
+        if ignored_keys:
+            print(f"  Ignored {len(ignored_keys)} mismatched or missing keys (e.g. classification head)")
+
+        model_dict.update(filtered_dict)
+        model.load_state_dict(model_dict)
+        print("  Successfully loaded compatible backbone weights.")
+
     total, trainable = count_parameters(model)
     print(f"Parameters: {total:,} total, {trainable:,} trainable")
 
@@ -335,6 +354,8 @@ def main():
     parser.add_argument('--mode', type=str, default='all',
                         choices=['train', 'evaluate', 'optimize', 'calibrate', 'compare', 'all'])
     parser.add_argument('--checkpoint', type=str, default=None)
+    parser.add_argument('--resume', type=str, default=None,
+                        help='Path to checkpoint to resume/fine-tune from')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -353,7 +374,7 @@ def main():
     model, test_loader, class_names = None, None, None
 
     if args.mode in ['train', 'all']:
-        model, test_loader, class_names = train(config)
+        model, test_loader, class_names = train(config, args.resume)
 
     if args.mode in ['evaluate', 'all']:
         evaluate(config, model, test_loader, class_names, args.checkpoint)

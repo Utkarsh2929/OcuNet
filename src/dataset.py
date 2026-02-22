@@ -269,8 +269,10 @@ class ImprovedDataManager:
         self.config = config
         self.phase1_root = Path(config['dataset'].get('phase1_root', 'data/dataset'))
         self.phase2_root = Path(config['dataset'].get('phase2_root', 'data/rfmid'))
+        self.phase3_root = Path(config['dataset'].get('phase3_root', 'data/Augmented Dataset'))
         self.use_phase1 = config['dataset'].get('use_phase1', True)
         self.use_phase2 = config['dataset'].get('use_phase2', True)
+        self.use_phase3 = config['dataset'].get('use_phase3', True)
         self.image_size = config['dataset']['image_size']
         self.min_samples = config['dataset'].get('min_samples_per_class', 10)
 
@@ -412,6 +414,54 @@ class ImprovedDataManager:
 
         return paths, np.array(labels) if labels else np.array([])
 
+    def _load_phase3(self) -> Tuple[List[str], np.ndarray]:
+        """Load Phase 3 dataset (Augmented Dataset)."""
+
+        if not self.phase3_root.exists():
+            print(f"  Phase 3 (Augmented) root not found: {self.phase3_root}")
+            return [], np.array([])
+
+        # Mapping folder names to existing/new classes
+        phase3_classes = {
+            'Central Serous Chorioretinopathy [Color Fundus]': 'CSR',
+            'Diabetic Retinopathy': 'DR',
+            'Disc Edema': 'ODE',
+            'Glaucoma': 'GLAUCOMA',
+            'Healthy': 'NORMAL',
+            'Macular Scar': 'MS',
+            'Myopia': 'MYA',
+            'Pterygium': 'PT',
+            'Retinal Detachment': 'RD',
+            'Retinitis Pigmentosa': 'RP'
+        }
+
+        paths = []
+        labels = []
+
+        for folder_name, disease_name in phase3_classes.items():
+            folder_path = self.phase3_root / folder_name
+            if not folder_path.exists():
+                continue
+
+            for img_file in folder_path.iterdir():
+                if img_file.suffix.lower() in ['.png', '.jpg', '.jpeg']:
+                    # Create label
+                    label = np.zeros(len(self.disease_names), dtype=np.float32)
+
+                    if disease_name in self.disease_names:
+                        idx = self.disease_names.index(disease_name)
+                        label[idx] = 1
+
+                    # Set Disease_Risk for non-normal
+                    if disease_name != 'NORMAL' and 'Disease_Risk' in self.disease_names:
+                        risk_idx = self.disease_names.index('Disease_Risk')
+                        label[risk_idx] = 1
+
+                    paths.append(str(img_file))
+                    labels.append(label)
+
+        return paths, np.array(labels) if labels else np.array([])
+
     def _load_all_data(self):
         """Load all data and determine disease classes."""
 
@@ -434,11 +484,17 @@ class ImprovedDataManager:
                     if disease not in all_diseases:
                         all_diseases.append(disease)
 
+            # Add Phase 3 (Augmented Dataset) additional classes
+            if self.use_phase3:
+                for disease in ['RD', 'RP']:
+                    if disease not in all_diseases:
+                        all_diseases.append(disease)
+
             self.disease_names = all_diseases
         else:
             # Default diseases
             self.disease_names = ['Disease_Risk', 'DR', 'ARMD', 'MH', 'ODC',
-                                  'CATARACT', 'GLAUCOMA', 'NORMAL']
+                                  'CATARACT', 'GLAUCOMA', 'NORMAL', 'RD', 'RP']
 
         print(f"\nDisease classes ({len(self.disease_names)}):")
         for i, d in enumerate(self.disease_names):
@@ -578,6 +634,29 @@ class ImprovedDataManager:
                 test_labels.extend(p1_test_labels)
 
                 print(f"  Phase 1 - Train: {len(p1_train_paths)}, Val: {len(p1_val_paths)}, Test: {len(p1_test_paths)}")
+
+        # Load Phase 3 Data (Augmented Dataset)
+        if self.use_phase3:
+            print("\nLoading Phase 3 (Augmented) dataset...")
+            p3_paths, p3_labels = self._load_phase3()
+
+            if len(p3_paths) > 0:
+                # Split Phase 3
+                p3_train_paths, p3_temp_paths, p3_train_labels, p3_temp_labels = train_test_split(
+                    p3_paths, p3_labels, test_size=0.3, random_state=42
+                )
+                p3_val_paths, p3_test_paths, p3_val_labels, p3_test_labels = train_test_split(
+                    p3_temp_paths, p3_temp_labels, test_size=0.5, random_state=42
+                )
+
+                train_paths.extend(p3_train_paths)
+                train_labels.extend(p3_train_labels)
+                val_paths.extend(p3_val_paths)
+                val_labels.extend(p3_val_labels)
+                test_paths.extend(p3_test_paths)
+                test_labels.extend(p3_test_labels)
+
+                print(f"  Phase 3 - Train: {len(p3_train_paths)}, Val: {len(p3_val_paths)}, Test: {len(p3_test_paths)}")
 
         # Convert to arrays
         train_labels = np.array(train_labels)
