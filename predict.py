@@ -39,29 +39,11 @@ DISEASE_INFO = {
     'EDN': ('Exudative Diabetic Neuropathy', 'Fluid leakage from diabetic nerve damage'),
     'RPEC': ('RPE Changes', 'Retinal pigment epithelium changes'),
     'MHL': ('Macular Hole Lamellar', 'Partial-thickness macular defect'),
-    'RP': ('Retinitis Pigmentosa', 'Inherited retinal disorder causing vision loss'),
-    'CWS': ('Cotton Wool Spots', 'Fluffy white patches on the retina'),
-    'CB': ('Coloboma', 'Missing tissue in the eye'),
-    'ODPM': ('Optic Disc Pit Maculopathy', 'Fluid under macula from optic disc pit'),
-    'PRH': ('Preretinal Hemorrhage', 'Bleeding in front of the retina'),
-    'MNF': ('Myelinated Nerve Fibers', 'White patches near optic disc'),
-    'HR': ('Hemorrhage', 'Bleeding in the eye'),
-    'CRAO': ('Central Retinal Artery Occlusion', 'Blockage in central retinal artery'),
-    'TD': ('Toxoplasma Diseased', 'Scarring due to toxoplasmosis infection'),
-    'CME': ('Cystoid Macular Edema', 'Fluid-filled cysts in macular region'),
-    'PTCR': ('Phthisis Bulbi', 'Shrunken, non-functional eye'),
-    'CF': ('Choroidal Folds', 'Lines or grooves in the choroid'),
-    'VH': ('Vitreous Hemorrhage', 'Bleeding into the vitreous humor'),
-    'MCA': ('Macrotubular Carcinoma', 'Macular issues or anomalies'),
-    'VS': ('Vitreous Syneresis', 'Liquefaction of vitreous'),
-    'BRAO': ('Branch Retinal Artery Occlusion', 'Blockage in a branch retinal artery'),
-    'PLQ': ('Plaque', 'Cholesterol or calcific plaques in vessels'),
-    'HPED': ('Hemorrhagic Pigment Epithelial Detachment', 'Blood under RPE'),
-    'CL': ('Collaterals', 'Abnormal blood vessels'),
-    'RD': ('Retinal Detachment', 'Retina pulls away from supportive tissue'),
     'CATARACT': ('Cataract', 'Clouding of the eye lens'),
     'GLAUCOMA': ('Glaucoma', 'Optic nerve damage'),
     'NORMAL': ('Normal', 'No significant pathology detected'),
+    'RD': ('Retinal Detachment', 'Retina pulls away from supportive tissue'),
+    'RP': ('Retinitis Pigmentosa', 'Inherited retinal disorder causing vision loss'),
 }
 
 
@@ -357,6 +339,12 @@ class ImprovedMultiLabelClassifier:
             report_lines.append(
                 "• Age-related macular degeneration detected. Recommend AREDS supplements and regular monitoring.")
 
+        if 'RD' in result['detected_diseases']:
+            report_lines.append("• EMERGENCY: Retinal Detachment detected. Immediate ophthalmological intervention required.")
+
+        if 'RP' in result['detected_diseases']:
+            report_lines.append("• Retinitis Pigmentosa indicators detected. Recommend comprehensive retinal evaluation.")
+
         if not result['detected_diseases']:
             report_lines.append("• Continue routine screening schedule.")
             report_lines.append("• No immediate intervention required.")
@@ -387,7 +375,7 @@ def main():
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python predict_multilabel_improved.py <image_path> [--report]")
+        print("Usage: python predict.py <image_path> [--report]")
         sys.exit(1)
 
     image_path = sys.argv[1]
