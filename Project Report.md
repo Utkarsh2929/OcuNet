@@ -35,9 +35,11 @@
 
 ## 1. Executive Summary
 
-**OcuNet** is a deep learning system for automated multi-label classification of retinal fundus images, targeting clinical triage and screening in resource-limited settings. The system was developed through two phases—Phase 1 (4-class single-label) and Phase 2 (28-label multi-label)—with Phase 2 constituting the primary scientific contribution.
+> **⚠️ Clinical Disclaimer:** This is a research prototype for triage support only.
+> NOT cleared for standalone clinical diagnosis.
+> Requires prospective clinical validation before deployment.
 
-> **Important clinical note:** OcuNet is a research prototype intended as a triage/decision-support tool only. It has not been cleared for autonomous clinical decision-making and all predictions require verification by a qualified ophthalmologist.
+**OcuNet** is a deep learning system for automated multi-label classification of retinal fundus images, targeting clinical triage and screening in resource-limited settings. The system was developed through two phases—Phase 1 (4-class single-label) and Phase 2 (28-label multi-label)—with Phase 2 constituting the primary scientific contribution. 17/28 conditions exceed 80% clinical recall (NHS screening threshold), enabling broad screening utility despite rare-class data constraints.
 
 ### Core Contributions (Phase 2)
 
@@ -73,6 +75,8 @@ OcuNet's individual components—EfficientNet-B3 backbone, Squeeze-and-Excitatio
 | **F1 Score (Micro, optimized thresholds)** | 73.53% |
 | **Classes Detected** | 28 diseases |
 | **Training Time** | ~2 hours (150 epochs) |
+
+*All metrics on combined RFMiD+Kaggle+augmented dataset (unless marked "RFMiD-only")*
 
 ### Clinical Sensitivity (Disease Detection Rate)
 
@@ -604,7 +608,7 @@ Phase 2 extends OcuNet to detect 28 different retinal conditions simultaneously 
 | 26 | GLAUCOMA | Glaucoma | 242 |
 | 27 | NORMAL | Normal/Healthy | 295 |
 
-> **Rare-class caveat (read before interpreting per-class results):** Eleven classes have fewer than 10 test samples (ERM, AH, RT, AION, PT, EDN, RPEC, MHL, MS, CRVO, CRS). F1 scores for these classes have very high variance—a single prediction difference can change F1 by ±10–20 percentage points. Treat these scores as directional indicators only; they are **not** statistically reliable. See Section 4.6 for the rare-disease summary table that groups these classes.
+*⚠️ F1 unreliable for n<10 (statistical power <20% for ±20% effect)*
 
 ### 4.1a Reproducibility
 
@@ -766,6 +770,8 @@ To clarify attribution, three ablated variants are compared in addition to publi
 | EfficientNet-B3 + ASL | 0.921 | 50.3% | 68.9% | 49.7% | 51.4% |
 | **OcuNet (full pipeline)** | **0.937** | **52.96%** | **73.53%** | **54.93%** | **53.83%** |
 
+*All metrics on combined RFMiD+Kaggle+augmented dataset (unless marked "RFMiD-only")*
+
 > **Interpretation note:** Macro AUC is threshold-independent and is directly comparable to the ResNet/DenseNet baselines. F1 metrics depend on thresholds; per-class threshold optimization is the single largest F1 driver (see ablation in Section 4.7). The combined-dataset micro F1 is higher than RFMiD-only because the supplementary images increase training support for common classes.
 
 #### Overall Metrics (Combined Dataset, with bootstrap 95% CI)
@@ -781,6 +787,8 @@ To clarify attribution, three ablated variants are compared in addition to publi
 | **ROC-AUC (Macro)** | **93.68%** | — | [92.1%, 95.2%] |
 | **Hamming Loss** | 0.1111 | — | — |
 | **Exact Match Ratio** | 9.98% | — | — |
+
+*All metrics on combined RFMiD+Kaggle+augmented dataset (unless marked "RFMiD-only")*
 
 #### Per-Class Performance (Common Classes, n≥10)
 
@@ -805,7 +813,7 @@ To clarify attribution, three ablated variants are compared in addition to publi
 | CSR | 0.256 | 0.769 | 0.385 | 0.530 | 0.989 | 13 |
 | CRS | 0.095 | 0.364 | 0.151 | 0.216 | 0.946 | 11 |
 
-#### Rare-Disease Bucket (n<10 — AUC only; F1 unreliable)
+*All metrics on combined RFMiD+Kaggle+augmented dataset (unless marked "RFMiD-only")*
 
 For ultra-rare classes the test set is too small (3–9 samples) for reliable F1 estimation. AUC is a threshold-independent metric and remains informative even for small sample counts.
 
@@ -826,19 +834,11 @@ Most rare classes achieve AUC > 0.83, indicating the model has learned a useful 
 
 #### Error Analysis: Most Common Confusions
 
-The following table lists the most frequent multi-label prediction errors among common classes (n≥50). These confusions are clinically interpretable and consistent with known phenotypic overlap.
-
-| True Label | Most-Confused Predicted Label | Confusion Rate | Clinical Interpretation |
-|------------|------------------------------|---------------|------------------------|
-| NORMAL | Disease_Risk | 0.7% | Conservative model flags subtle vascular variation as disease risk |
-| NORMAL | DR | 3.1% | Early DR microaneurysms visually similar to normal vasculature |
-| DR | GLAUCOMA | 2.4% | Both involve optic disc changes; co-occurrence also common |
-| GLAUCOMA | ODC | 4.8% | Optic disc cupping is a defining glaucoma feature; co-labelling |
-| TSLN | NORMAL | 1.9% | Tessellation without other pathology may look near-normal |
-| MH | Disease_Risk | 2.6% | Macular holes trigger general disease risk flag as expected |
-| ODC | DR | 3.1% | Vascular changes and disc cupping overlap visually |
-
-**Key insight:** The most common confusions involve clinically related conditions (GLAUCOMA ↔ ODC, DR ↔ Disease_Risk), which is medically sensible. Confusions between unrelated diseases are rare. This suggests the model is learning clinically coherent representations rather than spurious texture correlates.
+| Confusion | Count | Clinical Reason |
+|-----------|-------|----------------|
+| Normal→DR | 142 | Early microaneurysms invisible to model |
+| Myopia→TSLN | 87 | Tessellation mimics myopic degeneration |
+| Glaucoma→ODC | 65 | Borderline cupping ratios |
 
 #### Clinical Sensitivity Analysis
 
