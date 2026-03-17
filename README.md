@@ -1,4 +1,4 @@
-﻿# OcuNet 🔬
+# OcuNet 🔬
 
 A deep learning system for automated multi-label classification of retinal fundus images, detecting **28 eye disease classes** simultaneously using EfficientNet-B3 with transfer learning.
 
@@ -79,7 +79,7 @@ python setup_datasets.py verify
 ### 3. Training
 
 ```bash
-# Full pipeline: train + evaluate + threshold optimization
+# Full pipeline: train + evaluate + threshold optimization + calibration
 python train_pipeline.py --mode all
 
 # Train only
@@ -90,6 +90,9 @@ python train_pipeline.py --mode evaluate
 
 # Optimize per-class thresholds
 python train_pipeline.py --mode optimize
+
+# Calibrate model with temperature scaling and re-optimize thresholds
+python train_pipeline.py --mode calibrate
 ```
 
 ### 4. Prediction
@@ -130,6 +133,8 @@ OcuNet/
 │   ├── models.py                # EfficientNet-B3 model architecture
 │   ├── train.py                 # Training loop with EMA, warmup, cosine LR
 │   ├── evaluate.py              # Evaluation metrics, plots, reports
+│   ├── calibrate.py             # Temperature scaling & calibrated thresholds
+│   ├── preprocessing.py         # Fundus ROI crop and CLAHE transforms
 │   └── utils.py                 # Utility functions
 ├── checkpoints/                 # Saved model weights
 ├── evaluation_results/          # Metrics, plots, reports
@@ -222,6 +227,9 @@ OcuNet/
 - **Class Oversampling**: Automatic oversampling for rare disease classes
 - **Per-Class Threshold Optimization**: Optimized decision thresholds for each disease
 - **Squeeze-and-Excitation**: Channel attention in the classification head
+- **Temperature Scaling**: Post-hoc probability calibration for better-calibrated predictions
+- **Fundus ROI Crop**: Automatic detection and cropping of the circular retinal region
+- **CLAHE Preprocessing**: Contrast Limited Adaptive Histogram Equalization for illumination normalization
 
 ---
 
@@ -239,6 +247,8 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 tqdm>=4.65.0
 PyYAML>=6.0
+albumentations>=1.3.0
+timm>=0.9.0
 ```
 
 ---
