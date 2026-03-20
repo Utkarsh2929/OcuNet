@@ -1,6 +1,6 @@
-﻿# OcuNet 🔬
+# OcuNet
 
-A deep learning system for automated multi-label classification of retinal fundus images, detecting **28 eye disease classes** simultaneously using EfficientNet-B3 with transfer learning.
+A comprehensive, deep learning-based system for automated multi-label classification of retinal fundus images. OcuNet detects **28 eye disease classes** simultaneously using a highly optimized EfficientNet-B3 architecture with transfer learning, designed specificially for clinical reliability, interpretability, and robust performance.
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
@@ -8,264 +8,222 @@ A deep learning system for automated multi-label classification of retinal fundu
 
 ---
 
-## 📊 Results
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Clinical Significance](#clinical-significance)
+3. [Key Achievements](#key-achievements)
+4. [Model Architecture](#model-architecture)
+5. [Clinical Sensitivity Analysis](#clinical-sensitivity-analysis)
+6. [Explainability (Grad-CAM)](#explainability-grad-cam)
+7. [Quick Start & Installation](#quick-start--installation)
+8. [Usage Guide](#usage-guide)
+9. [Supported Diseases](#supported-diseases-28-classes)
+10. [Documentation & Research](#documentation--research)
+
+---
+
+## Executive Summary
+
+OcuNet represents a two-phase evolution in retinal pathology classification:
+- **Phase 1:** Single-label classification into 4 fundamental categories (Cataract, Diabetic Retinopathy, Glaucoma, Normal) reaching **97.88% ROC-AUC**.
+- **Phase 2:** Massive scale-up to **multi-label classification predicting 28 distinct conditions** simultaneously, handling complex co-morbidities natively with **93.68% ROC-AUC**.
+
+The system utilizes Asymmetric Loss (ASL), calibrated probabilities, and intelligent preprocessing to solve extreme class imbalances common in medical datasets. 
+
+---
+
+## Clinical Significance
+
+Devastating ocular pathologies consistently rank as one of the leading global causes contributing to irreversible blindness. Manual examination of retinal images requires specialized medical expertise, is time-consuming, and completely unscalable for mass screening programs (specifically in rural demographics). 
+
+OcuNet aims to bridge this gap by providing an accurate, unbiased, and natively interpretable tool capable of mapping exact physiological regions (Grad-CAM) for disease detection, acting as a crucial triage system.
+
+---
+
+## Key Achievements
+
+With the incorporation of Per-Class Threshold Optimization, OcuNet achieves the following metrics on the **Phase 2 (28-class)** dataset:
 
 | Metric | Value |
 |--------|-------|
 | **ROC-AUC (Macro)** | 93.68% |
 | **mAP (Mean Average Precision)** | 53.83% |
-| **F1 Score (Micro)** | 52.96% |
+| **F1 Score (Micro, Optimized)** | 73.53% |
+| **F1 Score (Macro, Optimized)** | 54.93% |
 | **Hamming Loss** | 0.1111 |
-
-#### Key Disease Detection (Recall)
-
-| Disease | Sensitivity | Status |
-|---------|-------------|--------|
-| Cataract | 100.0% | ✅ Excellent |
-| Diabetic Retinopathy | 96.2% | ✅ Excellent |
-| Glaucoma | 96.3% | ✅ Excellent |
-| Age-Related Macular Degeneration | 90.3% | ✅ Excellent |
-| Macular Hole | 100.0% | ✅ Excellent |
-| Myopia | 93.8% | ✅ Excellent |
 
 ---
 
-## 🚀 Quick Start
+## Model Architecture
 
-### 1. Setup
+The core of OcuNet relies on a dynamically scalable **EfficientNet-B3** backbone (~12M parameters, 384x384 resolution) enhanced with an improved Multi-Label Classification Head.
+
+### Key Architectural Improvements:
+- **Squeeze-and-Excitation (SE) Interception:** We route the flattened 1536-dimensional feature vector across SE layers to dynamically multiply absolute channel weighting.
+- **Heavy Dimensional MLP:** A cascading configuration (1536 → 512 → 256 → 28). Each tier strictly utilizes Batch Normalization + Gaussian Error Linear Unit (GELU) to stabilize extreme derivations.
+- **Independent Sigmoids:** Softmax is completely removed in favor of 28 isolated Sigmoid activation functions, mapping distinct $0 \rightarrow 1$ limit thresholds seamlessly per disease class.
+
+### Training Optimizations:
+- **Asymmetric Loss (ASL)** with $\gamma_{neg}=6, \gamma_{pos}=1, clip=0.1$ to aggressively down-weight easy background negatives.
+- **Learning Rate Warmup & Cosine Annealing**
+- **Exponential Moving Average (EMA)** (decay=0.999) for stable parameter evaluations.
+
+---
+
+## Clinical Sensitivity Analysis
+
+For medical diagnostic systems, **sensitivity (recall)** is critical to minimize missed positive cases.
+
+| Disease | Recall | Clinical Target (≥80%) |
+|---------|--------|------------------------|
+| **Cataract** | 100.0% | Excellent |
+| **Macular Hole** | 100.0% | Excellent |
+| **Glaucoma** | 96.3% | Excellent |
+| **Diabetic Retinopathy** | 96.2% | Excellent |
+| **Diabetic Nephropathy** | 95.7% | Excellent |
+| **Age-Related Macular Degeneration** | 90.3% | Excellent |
+
+_Summary: 17 out of 28 critical classes achieve the ≥80% clinical sensitivity threshold, making OcuNet viable for preliminary screenings._
+
+---
+
+## Explainability (Grad-CAM)
+
+OcuNet ships with **Gradient-weighted Class Activation Mapping (Grad-CAM)** specifically mapping the exact structural pixel derivations the model views. 
+
+- **Cataract:** Highlights the central lens region and opaque/hazy areas perfectly.
+- **Diabetic Retinopathy:** Focuses specifically on the macula and distinct potential hemorrhages/exudates.
+- **Glaucoma:** Actively isolates the optic disc and cup region precisely diagnosing neuroretinal rim thinning.
+- **Normal:** Model diffuses focus across broad healthy vascular patterns, validating comprehensive health confidently.
+
+---
+
+## Quick Start & Installation
+
+### 1. Environment Setup
+
+*GPU with 6GB+ VRAM (e.g. RTX 4050 or higher) and 16GB RAM is highly recommended.*
 
 ```bash
-# Create virtual environment (Python 3.10-3.12)
-py -3.11 -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+# Create virtual environment 
+python -m venv venv
+# Activate environment
+venv\Scripts\activate      # Windows
+# source venv/bin/activate # Linux/Mac
 
-# Install PyTorch with CUDA
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Install PyTorch with CUDA (adjust to your CUDA version)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Install dependencies
+# Install requirements
 pip install -r requirements.txt
 ```
 
-### 2. Dataset
+### 2. Downloading the Models (Git LFS)
+OcuNet uses **Git Large File Storage (LFS)** for model weight files (`.pth`). Make sure it is installed.
 
-**Phase 1 Dataset:** Download from [Kaggle](https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification) and extract to `data/dataset/`:
+```bash
+# Install Git LFS
+git lfs install
 
-```
-data/dataset/
-├── cataract/
-├── diabetic_retinopathy/
-├── glaucoma/
-└── normal/
-```
-
-**Phase 2 Dataset (RFMiD):** Download from [IEEE Dataport](https://ieee-dataport.org/open-access/retinal-fundus-multi-disease-image-dataset-rfmid) and extract to `data/rfmid/`:
-
-```
-data/rfmid/
-├── Training_Set/
-├── Evaluation_Set/
-├── Test_Set/
-└── RFMiD_*.csv
+# Pull the latest LFS files (including models/ocunetv4.pth)
+git lfs pull
 ```
 
-**Phase 3 Dataset (Augmented Dataset):** Place the supplementary augmented dataset for underrepresented diseases in `data/Augmented Dataset/`.
+### 3. Setting Up the Dataset
 
-Use `setup_datasets.py` to verify dataset setup:
+To replicate the training experiments, download the datasets and place them in the correct directories:
+
+**Phase 1 Dataset:** Download from [Kaggle](https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification) to `data/dataset/`
+**Phase 2 Dataset (RFMiD):** Download from [IEEE Dataport](https://ieee-dataport.org/open-access/retinal-fundus-multi-disease-image-dataset-rfmid) to `data/rfmid/`
+**Phase 3 Dataset:** Augmented images mapped to `data/Augmented Dataset/`
+
+Verify correct directory creation:
 ```bash
 python setup_datasets.py verify
 ```
 
-### 3. Training
+---
 
-```bash
-# Full pipeline: train + evaluate + threshold optimization
-python train_pipeline.py --mode all
+## Usage Guide
 
-# Train only
-python train_pipeline.py --mode train
+### Prediction / Inference
 
-# Evaluate only (from checkpoint)
-python train_pipeline.py --mode evaluate
+You can run predictions on new, unseen retinal images right from the command line:
 
-# Optimize per-class thresholds
-python train_pipeline.py --mode optimize
-```
-
-### 4. Prediction
-
-```python
-from predict import ImprovedMultiLabelClassifier
-
-classifier = ImprovedMultiLabelClassifier()
-result = classifier.predict("path/to/retinal_image.jpg")
-
-print(result['diseases'])          # ['DR', 'ARMD']
-print(result['probabilities'])     # {'DR': 0.85, 'ARMD': 0.72, ...}
-
-# Generate a detailed medical report
-classifier.generate_report(result, output_path="report.txt")
-```
-
-**Command Line:**
 ```bash
 python predict.py path/to/image.jpg
 ```
 
----
+Or consume the API programmatically:
+```python
+from predict import ImprovedMultiLabelClassifier
 
-## 📁 Project Structure
+# Loads the LFS ocunetv4.pth weights cleanly
+classifier = ImprovedMultiLabelClassifier()
+result = classifier.predict("path/to/retinal_image.jpg")
 
-```
-OcuNet/
-├── config/
-│   └── config.yaml              # Training & model configuration
-├── data/
-│   ├── dataset/                 # Phase 1 dataset (4 classes)
-│   ├── rfmid/                   # Phase 2 RFMiD dataset (28 classes)
-│   └── Augmented Dataset/       # Phase 3 Augmented dataset
-├── src/
-│   ├── __init__.py              # Package exports
-│   ├── dataset.py               # Data loading, augmentation, oversampling
-│   ├── models.py                # EfficientNet-B3 model architecture
-│   ├── train.py                 # Training loop with EMA, warmup, cosine LR
-│   ├── evaluate.py              # Evaluation metrics, plots, reports
-│   └── utils.py                 # Utility functions
-├── checkpoints/                 # Saved model weights
-├── evaluation_results/          # Metrics, plots, reports
-├── train_pipeline.py            # Main training entry point
-├── predict.py                   # Prediction interface
-├── setup_datasets.py            # Dataset setup & verification
-├── requirements.txt             # Dependencies
-├── Project Report.md            # Detailed project documentation
-└── Training Log *.txt           # Training run logs
+print("Detected Diseases:", result['diseases'])          
+print("Probabilities:", result['probabilities'])     
+
+# Generate a detailed clinical text report automatically
+classifier.generate_report(result, output_path="report.txt")
 ```
 
----
+### Training Pipeline Automation
 
-## 🏗️ Model Architecture
+The training framework is fully configurable via `config/config.yaml`.
 
-| Property | Value |
-|----------|-------|
-| Architecture | EfficientNet-B3 + Improved Classification Head |
-| Parameters | ~12M trainable |
-| Input Size | 384 × 384 × 3 |
-| Output Classes | 28 |
-| Loss Function | Asymmetric Loss (ASL) |
-| Features | EMA, Warmup, RandAugment, Torch Compile |
+```bash
+# Execute the full pipeline: Train -> Evaluate -> Optimize Thresholds -> Calibrate Letencies
+python train_pipeline.py --mode all
 
----
-
-## 🏷️ Supported Disease Classes (28)
-
-| # | Code | Disease |
-|---|------|---------|
-| 0 | Disease_Risk | General disease risk indicator |
-| 1 | DR | Diabetic Retinopathy |
-| 2 | ARMD | Age-Related Macular Degeneration |
-| 3 | MH | Macular Hole |
-| 4 | DN | Diabetic Nephropathy |
-| 5 | MYA | Myopia |
-| 6 | BRVO | Branch Retinal Vein Occlusion |
-| 7 | TSLN | Tessellation |
-| 8 | ERM | Epiretinal Membrane |
-| 9 | LS | Laser Scars |
-| 10 | MS | Maculopathy |
-| 11 | CSR | Central Serous Retinopathy |
-| 12 | ODC | Optic Disc Cupping |
-| 13 | CRVO | Central Retinal Vein Occlusion |
-| 14 | AH | Asteroid Hyalosis |
-| 15 | ODP | Optic Disc Pallor |
-| 16 | ODE | Optic Disc Edema |
-| 17 | AION | Anterior Ischemic Optic Neuropathy |
-| 18 | PT | Pigment Changes |
-| 19 | RT | Retinitis |
-| 20 | RS | Retinal Scars |
-| 21 | CRS | Chorioretinitis Scars |
-| 22 | EDN | Macular Edema |
-| 23 | RPEC | RPE Changes |
-| 24 | MHL | Macular Holes (Large) |
-| 25 | CATARACT | Cataract |
-| 26 | GLAUCOMA | Glaucoma |
-| 27 | NORMAL | Normal/Healthy |
-
----
-
-## 📈 Training Details
-
-### Hardware Requirements
-- GPU with 6GB+ VRAM (tested on NVIDIA RTX 4050)
-- 16GB+ RAM recommended
-- CUDA 12.1+
-
-### Training Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| Batch Size | 16 (Gradient Accumulation = 1) |
-| Max Epochs | 200 |
-| Learning Rate | 3e-4 with warmup |
-| Optimizer | AdamW |
-| Weight Decay | 1e-4 |
-| Early Stopping | 30 epochs |
-| Mixed Precision | ✅ FP16 |
-| Compilation | ✅ `torch.compile` |
-
----
-
-## 🛠️ Key Features
-
-- **Asymmetric Loss (ASL)**: Better handling of class imbalance in multi-label setting
-- **Exponential Moving Average (EMA)**: Improved model stability
-- **Learning Rate Warmup**: Gradual learning rate increase for better convergence
-- **RandAugment**: Strong data augmentation for regularization
-- **Class Oversampling**: Automatic oversampling for rare disease classes
-- **Per-Class Threshold Optimization**: Optimized decision thresholds for each disease
-- **Squeeze-and-Excitation**: Channel attention in the classification head
-
----
-
-## 📋 Requirements
-
-```
-torch>=2.0.0
-torchvision>=0.15.0
-numpy>=1.24.0
-pandas>=2.0.0
-scikit-learn>=1.3.0
-Pillow>=10.0.0
-opencv-python>=4.8.0
-matplotlib>=3.7.0
-seaborn>=0.12.0
-tqdm>=4.65.0
-PyYAML>=6.0
+# Run specific functional blocks:
+python train_pipeline.py --mode train      # Training only
+python train_pipeline.py --mode evaluate   # Validation evaluation only
+python train_pipeline.py --mode optimize   # Dynamic probability threshold optimizer
 ```
 
 ---
 
-## 📚 Documentation
+## Supported Diseases (28 Classes)
 
-For detailed technical documentation, see [Project Report.md](Project%20Report.md).
+| # | Code | Full Disease Name | # | Code | Full Disease Name |
+|---|------|-------------------|---|------|-------------------|
+| 0 | `Disease_Risk` | General Disease Risk | 14 | `AH` | Asteroid Hyalosis |
+| 1 | `DR` | Diabetic Retinopathy | 15 | `ODP` | Optic Disc Pallor |
+| 2 | `ARMD` | Age-Related Macular Degeneration | 16 | `ODE` | Optic Disc Edema |
+| 3 | `MH` | Macular Hole | 17 | `AION` | Anterior Ischemic Optic Neuropathy |
+| 4 | `DN` | Diabetic Nephropathy | 18 | `PT` | Pigment Changes |
+| 5 | `MYA` | Myopia | 19 | `RT` | Retinitis |
+| 6 | `BRVO` | Branch Retinal Vein Occlusion | 20 | `RS` | Retinal Scars |
+| 7 | `TSLN` | Tessellation | 21 | `CRS` | Chorioretinal Scars |
+| 8 | `ERM` | Epiretinal Membrane | 22 | `EDN` | Macular Edema |
+| 9 | `LS` | Laser Scars | 23 | `RPEC` | RPE Changes |
+| 10 | `MS` | Maculopathy | 24 | `MHL` | Macular Holes (Large) |
+| 11 | `CSR` | Central Serous Retinopathy | 25 | `CATARACT` | Cataract |
+| 12 | `ODC` | Optic Disc Cupping | 26 | `GLAUCOMA` | Glaucoma |
+| 13 | `CRVO` | Central Retinal Vein Occlusion | 27 | `NORMAL` | Normal/Healthy |
 
 ---
 
-## 📄 License
+## Documentation & Research
 
-This project is licensed under the MIT License.
-
----
-
-## 👤 Author
-
-**Utkarsh Gautam**  
-January 2026
+For an expansive deep dive into validation methodologies, ablation studies, false positive error diagnostics, or layer-by-layer architectures, please refer to the fully drafted **[Project Report.md](Project%20Report.md)** natively housed in the repo.
 
 ---
 
-## 📖 References
+## License & Author
 
-1. Tan, M., & Le, Q. (2019). EfficientNet: Rethinking Model Scaling for CNNs. ICML.
-2. Lin, T. Y., et al. (2017). Focal Loss for Dense Object Detection. ICCV.
-3. Ben-Baruch, E., et al. (2020). Asymmetric Loss for Multi-Label Classification. arXiv.
-4. [Kaggle Eye Diseases Dataset](https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification)
-5. [RFMiD Dataset](https://ieee-dataport.org/open-access/retinal-fundus-multi-disease-image-dataset-rfmid)
+**Author:** Utkarsh Gautam  
+**Updated:** 2026
+
+This open-source medical diagnostics project is licensed under the MIT License. Clinical deployment demands institutional board oversight and medical confirmation checks unconditionally.
+
+---
+
+### *References*
+1. *Tan, M., & Le, Q. (2019). EfficientNet: Rethinking Model Scaling for CNNs. ICML.*
+2. *Ben-Baruch, E., et al. (2020). Asymmetric Loss for Multi-Label Classification. arXiv.*
+3. *[RFMiD Dataset: Retinal Fundus Multi-Disease Image Dataset](https://ieee-dataport.org/open-access/retinal-fundus-multi-disease-image-dataset-rfmid)*
+
